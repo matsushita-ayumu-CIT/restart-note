@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>就活リスタートAI</title>
+  <meta name="description" content="選考落ち後の感情整理から再行動支援まで一気通貫の就活AI対話アプリ" />
+
+  <!-- React 18 UMD -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
+
+  <style>
+    * { font-family: 'Noto Sans JP', -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; height: 100%; overscroll-behavior: none; }
+
+    /* ── Phase Background Transition ── */
+    .phase-bg { transition: background 0.9s cubic-bezier(0.4,0,0.2,1); }
+
+    /* ── Message Entrance ── */
+    @keyframes msgIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .msg-in { animation: msgIn 0.32s cubic-bezier(0.4,0,0.2,1) both; }
+
+    /* ── Typing Dots ── */
+    @keyframes dotBounce {
+      0%,60%,100% { transform: translateY(0); opacity: 0.3; }
+      30%           { transform: translateY(-5px); opacity: 1; }
+    }
+    .tdot {
+      display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+      background: #9CA3AF;
+      animation: dotBounce 1.1s ease-in-out infinite;
+    }
+    .tdot:nth-child(2) { animation-delay: 0.18s; }
+    .tdot:nth-child(3) { animation-delay: 0.36s; }
+
+    /* ── Chip Hover ── */
+    .chip { transition: transform 0.13s ease, box-shadow 0.13s ease; cursor: pointer; }
+    .chip:hover  { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.13); }
+    .chip:active { transform: scale(0.95); }
+
+    /* ── Phone Frame Shadow ── */
+    .phone-frame {
+      box-shadow:
+        0 0 0 1px rgba(0,0,0,0.08),
+        0 24px 60px rgba(0,0,0,0.28),
+        0 56px 120px rgba(0,0,0,0.14);
+    }
+
+    /* ── Scrollbar ── */
+    .chat-scroll { scrollbar-width: thin; scrollbar-color: rgba(0,0,0,0.08) transparent; }
+    .chat-scroll::-webkit-scrollbar { width: 3px; }
+    .chat-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 2px; }
+
+    /* ── Match Bar Transition ── */
+    .match-bar { transition: width 1.2s cubic-bezier(0.4,0,0.2,1); }
+
+    /* ── Card Stagger ── */
+    .card-1 { animation-delay: 0s; }
+    .card-2 { animation-delay: 0.12s; }
+    .card-3 { animation-delay: 0.24s; }
+  </style>
+</head>
+
+<!-- Desktop backdrop — gradient changes with phase -->
+<body id="bodyEl" style="margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; transition:background 0.9s ease; background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);">
+
+<div id="root"></div>
+
+<script type="text/babel">
+/* ══════════════════════════════════════════════════════
+   UTILS
+══════════════════════════════════════════════════════ */
+const { useState, useEffect, useRef, useCallback } = React;
+const uid   = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ══════════════════════════════════════════════════════
+   PHASE CONFIG
+══════════════════════════════════════════════════════ */
+const P = {
+  1: {
+    name: "感情受容",
+    tip:  "今は無理に前を向かなくて大丈夫。悔しさをそのまま吐き出してね",
+    ph:   "今の気持ちをそのまま話してくれていいよ…",
+    hdr:  "linear-gradient(135deg,#4F46E5,#7C3AED)",
+    bg:   "linear-gradient(180deg,#F5F3FF 0%,#EDE9FE 100%)",
+    bdrop:"linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%)",
+    usr:  "#4F46E5",
+    aiBdr:"#DDD6FE",
+    sel:  { bg:"#EEF2FF", bdr:"#C7D2FE", txt:"#4338CA" },
+    avatar:"#4F46E5",
+  },
+  2: {
+    name: "状況整理",
+    tip:  "状況を一緒に整理しよう。正直に教えてくれれば大丈夫",
+    ph:   "選択肢を選ぶか、自由に話してね",
+    hdr:  "linear-gradient(135deg,#0284C7,#0369A1)",
+    bg:   "linear-gradient(180deg,#F0F9FF 0%,#E0F2FE 100%)",
+    bdrop:"linear-gradient(135deg,#0369a1 0%,#0ea5e9 100%)",
+    usr:  "#0284C7",
+    aiBdr:"#BAE6FD",
+    sel:  { bg:"#F0F9FF", bdr:"#7DD3FC", txt:"#0369A1" },
+    avatar:"#0284C7",
+  },
+  3: {
+    name: "再行動支援",
+    tip:  "次の一歩を一緒に考えよう。焦らなくていいよ",
+    ph:   "何でも聞いてね。面接練習もできるよ",
+    hdr:  "linear-gradient(135deg,#16A34A,#15803D)",
+    bg:   "linear-gradient(180deg,#F0FDF4 0%,#DCFCE7 100%)",
+    bdrop:"linear-gradient(135deg,#15803d 0%,#22c55e 100%)",
+    usr:  "#16A34A",
+    aiBdr:"#BBF7D0",
+    sel:  { bg:"#F0FDF4", bdr:"#86EFAC", txt:"#15803D" },
+    avatar:"#16A34A",
+  },
+};
+
+/* ══════════════════════════════════════════════════════
+   ICONS  (inline SVG, no library deps)
+══════════════════════════════════════════════════════ */
+const SendIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+  </svg>
+);
+const SettingsIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </svg>
+);
+const MicIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+  </svg>
+);
+
+/* ══════════════════════════════════════════════════════
+   MOCK ENGINE
+══════════════════════════════════════════════════════ */
+function detectKeyword(msg) {
+  if (/やめ|無理|限界|疲|しんど/.test(msg)) return 'exhausted';
+  if (/悔し|くや|怒|むかつ|ムカ/.test(msg)) return 'angry';
+  if (/泣|涙|つら|かなし|悲/.test(msg)) return 'sad';
+  if (/わからな|何がダメ|理由|なんで|わかんな/.test(msg)) return 'confused';
+  if (/恥|みじめ|情けない|恥ずかし/.test(msg)) return 'ashamed';
+  if (/親|家族|友達|周り|就活仲間/.test(msg)) return 'social';
+  return 'general';
+}
+
+const EMPATHY = {
+  exhausted: `そうだよね、もう限界って思うよね。\n\nずっと頑張り続けてきたんだもん。疲れて当然だよ。「やめたい」ってぐらい消耗してることを、ちゃんと受け取ったよ。\n\n他にも、吐き出したいこと、ある？`,
+  angry:     `悔しいよね。その怒り、全然おかしくない。\n\nあれだけ準備して、あれだけ頑張ったのに——っていうやりきれなさ、すごくわかる。もうちょっと聞かせてくれる？`,
+  sad:       `つらかったね。ほんとうに。\n\n泣きたいなら泣いていい。ここではそれが正しいと思う。その感情、全部受け取るから——もう少し話してみて。`,
+  confused:  `わからないのが一番しんどいよね。\n\nちゃんとやったはずなのに、何がいけなかったのかわからない——そのモヤモヤ感、すごく苦しいと思う。その「わからない」、もう少し聞かせてもらえる？`,
+  ashamed:   `恥ずかしいって感じるんだね。\n\nでもね——落ちたことはあなたの価値とは関係ない。選考は、企業がその瞬間に求めてるものとの一致かどうか、それだけだから。\n\n今はその感覚がつらいよね。もっと話して。`,
+  social:    `周りのことが気になるんだね。\n\n「自分だけ遅れてる」「親に言えない」——そういうプレッシャーって、就活のつらさをさらに倍増させるよね。その重さ、ちゃんと伝わってるよ。`,
+  general:   `うん、そうだったんだね。\n\nそれはつらかっただろうな。その気持ち、ちゃんと受け取ったよ。もう少し話してくれると嬉しい——何があったか、聞かせて。`,
+};
+
+const PRIORITY_CMT = {
+  '第一志望だった':          `そっか、一番行きたかったところか。それはひとしおつらいね。`,
+  '大本命ではないけど気になってた': `うん、それなりに期待してた分、やっぱりショックだよね。`,
+  '志望度は低めだった':       `第一志望じゃなくても、落ちるとやっぱり凹むよね。`,
+};
+const STAGE_CMT = {
+  'ES・書類選考':  `書類で落ちたか——フィードバックももらえなくて、一番モヤるやつだよね。`,
+  '一次・二次面接': `面接まで行けたんだね。実際に話したうえで落ちるのは、また別のしんどさがある。`,
+  '最終面接':      `最終まで行ったんだ。内定まであと一歩だったのに——その落差がつらいよね。`,
+};
+const SCHED_CMT = {
+  '今日・明日に面接がある': `今日明日に面接があるんだね。今日はぐっと感情を整理して、今夜ゆっくり休もう。明日の面接で「いい状態」で臨むことを最優先に。`,
+  '今週中に面接がある':    `今週中か。少し時間あるね。今日は感情を整理して、明日から少しずつ準備するくらいのペースがちょうどいいと思う。`,
+  '今は他に予定がない':    `今すぐ次の予定がないのか——ならよかった。今日はゆっくり休んでいい日だよ。自分を労ってあげてね。`,
+};
+
+function buildSummaryCard() {
+  return {
+    causes: [
+      "志望理由の解像度：「なぜこの会社か」の具体性・独自性が薄かった可能性",
+      "強みの文脈化：自分の強みを企業のニーズと結びつけて語れていたか",
+      "準備の深さ：その企業特有の事業・文化・競合状況への理解度",
+    ],
+    strengths: [
+      "長期戦を戦い抜ける継続力と粘り強さ（ここまで諦めなかった事実がある）",
+      "自己分析に向き合う誠実さと内省力",
+      "苦しい経験を言語化して整理できる思考力と感情知性",
+    ],
+    axes: ["人・チームの温度感を重視できる社風", "あなたの強みが活かせる事業領域", "結果より「プロセス」を評価する文化"],
+  };
+}
+
+function buildCompanyCards() {
+  return [
+    { name:"サイボウズ", industry:"ITサービス / グループウェア", tag:"文化マッチ × 多様性", desc:"「100人いたら100通りの働き方」を掲げる。個を大切にする文化が特徴。選考では人柄と価値観の一致を最重視。", match:93, color:"#6366F1" },
+    { name:"SmartHR",  industry:"HRTech / SaaS",             tag:"心理的安全性 × 急成長",   desc:"急成長しながらも心理的安全性が高い職場として評価が高い。フラットな組織でプロセス評価を重視する文化。", match:89, color:"#0EA5E9" },
+    { name:"コニカミノルタ", industry:"製造業 / DX",           tag:"安定 × 変革 × チームワーク", desc:"老舗ながら積極的DX推進中。チームで着実に成果を出す人を評価。じっくり自分を発揮したい人向き。", match:82, color:"#10B981" },
+  ];
+}
+
+function buildInterviewPrep() {
+  return [
+    { icon:"🎯", title:"「なぜこの会社か」を3文で言えるようにする", desc:"企業のHPやIR情報から固有名詞を必ず1つ以上入れる。「他社でもできる話」にならないよう、その会社だからこそを語る。" },
+    { icon:"💡", title:"強みを「企業ニーズ文脈」で語る型を身に着ける", desc:"「私の強みは〇〇です」だけでなく、「御社の〇〇という状況で、私の〇〇という強みが役立てます」という型で話す。" },
+    { icon:"🛡️", title:"圧迫質問への返し方を1つ用意しておく", desc:"「まだ内定ないですよね？」への答え：「はい。ただその分、各社での選考を通じて〇〇という学びを得てきました」と言える準備を。" },
+  ];
+}
+
+/* ── Gemini API call (optional) ── */
+async function callGeminiAPI(key, history, sysPrompt) {
+  const MODELS = ['gemini-3.8-flash','gemini-2.5-flash','gemini-1.5-flash'];
+  for (const model of MODELS) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await sleep(attempt * 2000);
+      try {
+        const res = await fetch(url, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+            system_instruction: { parts:[{text: sysPrompt}] },
+            contents: history,
+            generationConfig: { temperature:0.82, topP:0.9, maxOutputTokens:600 },
+          })
+        });
+        if (res.ok) {
+          const d = await res.json();
+          return d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        }
+        const err = await res.json().catch(()=>({}));
+        const msg = err.error?.message || '';
+        if (res.status===404 || /no longer available|not found/.test(msg)) break;
+        if (res.status===503 || /high demand|overloaded/.test(msg)) { if(attempt<2) continue; else break; }
+        throw new Error(msg);
+      } catch(e) { if(attempt<2) continue; break; }
+    }
+  }
+  throw new Error('API接続エラー');
+}
+
+/* ══════════════════════════════════════════════════════
+   SUB-COMPONENTS
+══════════════════════════════════════════════════════ */
+
+/* Typing indicator */
+function TypingBubble({ phase }) {
+  return (
+    <div className="flex items-end gap-2 mb-4 msg-in">
+      <div style={{width:28,height:28,borderRadius:'50%',background:P[phase].avatar,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+        <span style={{color:'white',fontSize:9,fontWeight:900}}>AI</span>
+      </div>
+      <div style={{background:'white',border:`1px solid ${P[phase].aiBdr}`,borderRadius:'18px 18px 18px 4px',padding:'12px 16px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}>
+        <div style={{display:'flex',gap:4,alignItems:'center'}}>
+          <div className="tdot" /><div className="tdot" /><div className="tdot" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Phase transition banner */
+function PhaseBanner({ from, to }) {
+  const col = P[to].avatar;
+  return (
+    <div className="msg-in" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'10px 16px',margin:'6px 4px',borderRadius:16,background:`${col}18`,border:`1px solid ${col}35`}}>
+      <span style={{fontSize:11,color:'#9CA3AF'}}>フェーズ{from} 完了</span>
+      <span style={{color:col,fontSize:12}}>→</span>
+      <span style={{fontSize:11,fontWeight:700,color:col}}>フェーズ{to}「{P[to].name}」へ</span>
+    </div>
+  );
+}
+
+/* Quick chip buttons (Phase 1 / 3) */
+function QuickChips({ chips, onSelect, phase }) {
+  const s = P[phase].sel;
+  return (
+    <div style={{display:'flex',flexWrap:'wrap',gap:7,marginTop:10}}>
+      {chips.map((c,i) => (
+        <button key={i} className="chip" onClick={() => onSelect(c)}
+          style={{fontSize:12,padding:'6px 13px',borderRadius:999,background:s.bg,border:`1px solid ${s.bdr}`,color:s.txt}}>
+          {c}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* Phase 2 structured selects */
+const SELECT_OPTS = {
+  priority: ['第一志望だった','大本命ではないけど気になってた','志望度は低めだった'],
+  stage:    ['ES・書類選考','一次・二次面接','最終面接'],
+  schedule: ['今日・明日に面接がある','今週中に面接がある','今は他に予定がない'],
+};
+function StructSelect({ type, onSelect, phase }) {
+  const col = P[phase].avatar;
+  return (
+    <div style={{display:'flex',flexWrap:'wrap',gap:7,marginTop:10}}>
+      {SELECT_OPTS[type].map((opt,i) => (
+        <button key={i} className="chip" onClick={() => onSelect(opt)}
+          style={{fontSize:12,padding:'8px 14px',borderRadius:12,background:`${col}12`,border:`1.5px solid ${col}40`,color:col,fontWeight:500}}>
+          {opt}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* Summary card (Phase 3) */
+function SummaryCard({ card }) {
+  return (
+    <div className="msg-in" style={{marginTop:12,borderRadius:18,overflow:'hidden',border:'1px solid #E5E7EB',boxShadow:'0 2px 12px rgba(0,0,0,0.07)'}}>
+      <div style={{background:'linear-gradient(135deg,#4F46E5,#7C3AED)',padding:'11px 16px'}}>
+        <span style={{color:'white',fontSize:11,fontWeight:800,letterSpacing:'0.04em'}}>📋 今回の選考 — 構造化メモ</span>
+      </div>
+      <div style={{background:'white',padding:16,display:'flex',flexDirection:'column',gap:14}}>
+        {/* Causes */}
+        <div>
+          <div style={{fontSize:11,fontWeight:700,color:'#EF4444',marginBottom:7}}>🔍 敗因の仮説（人格否定ではなく）</div>
+          {card.causes.map((c,i) => (
+            <div key={i} style={{display:'flex',gap:7,marginBottom:5}}>
+              <span style={{color:'#FCA5A5',flexShrink:0,marginTop:1,fontSize:10}}>●</span>
+              <span style={{fontSize:12,color:'#4B5563',lineHeight:'1.65'}}>{c}</span>
+            </div>
+          ))}
+        </div>
+        {/* Strengths */}
+        <div style={{borderTop:'1px solid #F3F4F6',paddingTop:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:'#059669',marginBottom:7}}>⚡ 見えてきたあなたの強み</div>
+          {card.strengths.map((s,i) => (
+            <div key={i} style={{display:'flex',gap:7,marginBottom:5}}>
+              <span style={{color:'#6EE7B7',flexShrink:0,marginTop:1,fontSize:10}}>●</span>
+              <span style={{fontSize:12,color:'#4B5563',lineHeight:'1.65'}}>{s}</span>
+            </div>
+          ))}
+        </div>
+        {/* Axes */}
+        <div style={{borderTop:'1px solid #F3F4F6',paddingTop:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:'#4F46E5',marginBottom:9}}>🎯 次の企業選び軸</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:7}}>
+            {card.axes.map((a,i) => (
+              <span key={i} style={{fontSize:11,padding:'4px 11px',borderRadius:999,background:'#EEF2FF',border:'1px solid #C7D2FE',color:'#4338CA'}}>{a}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Company cards (Phase 3) */
+function CompanyCards({ cards }) {
+  return (
+    <div style={{marginTop:12}}>
+      <div style={{fontSize:11,color:'#9CA3AF',fontWeight:600,marginBottom:9}}>🏢 あなたの軸にマッチした企業</div>
+      {cards.map((c,i) => (
+        <div key={i} className={`msg-in card-${i+1}`}
+          style={{background:'white',border:'1px solid #E5E7EB',borderRadius:16,padding:'13px 14px',marginBottom:9,boxShadow:'0 1px 6px rgba(0,0,0,0.06)'}}>
+          {/* Top row */}
+          <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:6}}>
+            <div>
+              <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:1}}>
+                <span style={{width:8,height:8,borderRadius:'50%',background:c.color,display:'inline-block',flexShrink:0}}/>
+                <span style={{fontWeight:800,fontSize:14,color:'#111827'}}>{c.name}</span>
+              </div>
+              <span style={{fontSize:10,color:'#9CA3AF'}}>{c.industry}</span>
+            </div>
+            <div style={{textAlign:'right',flexShrink:0}}>
+              <div style={{fontSize:16,fontWeight:900,color:'#059669'}}>{c.match}%</div>
+              <div style={{fontSize:9,color:'#9CA3AF'}}>マッチ度</div>
+            </div>
+          </div>
+          {/* Match bar */}
+          <div style={{height:3,background:'#F3F4F6',borderRadius:2,marginBottom:9,overflow:'hidden'}}>
+            <div className="match-bar" style={{height:'100%',width:`${c.match}%`,background:c.color,borderRadius:2}}/>
+          </div>
+          {/* Tag */}
+          <span style={{fontSize:10,padding:'3px 10px',borderRadius:999,background:`${c.color}18`,border:`1px solid ${c.color}35`,color:c.color,marginBottom:8,display:'inline-block'}}>{c.tag}</span>
+          <div style={{fontSize:12,color:'#6B7280',lineHeight:'1.6',marginTop:6}}>{c.desc}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* Interview prep cards (Phase 3) */
+function PrepCards({ items }) {
+  return (
+    <div style={{marginTop:12}}>
+      <div style={{fontSize:11,color:'#9CA3AF',fontWeight:600,marginBottom:9}}>💪 次回面接 重点対策</div>
+      {items.map((it,i) => (
+        <div key={i} className={`msg-in card-${i+1}`}
+          style={{background:'linear-gradient(135deg,#F0FDF4,#DCFCE7)',border:'1px solid #BBF7D0',borderRadius:14,padding:'12px 14px',marginBottom:9}}>
+          <div style={{fontSize:12,fontWeight:700,color:'#1F2937',marginBottom:4}}>{it.icon} {it.title}</div>
+          <div style={{fontSize:11,color:'#4B5563',lineHeight:'1.65'}}>{it.desc}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* AI message bubble */
+function AIBubble({ msg, phase, onChipSelect }) {
+  const ph = P[phase];
+  return (
+    <div className="flex items-start gap-2 mb-4 msg-in">
+      {/* Avatar */}
+      <div style={{width:28,height:28,borderRadius:'50%',background:ph.avatar,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:2}}>
+        <span style={{color:'white',fontSize:9,fontWeight:900}}>AI</span>
+      </div>
+      <div style={{maxWidth:'82%',flex:1}}>
+        {/* Text bubble */}
+        {msg.text && (
+          <div style={{background:'white',border:`1px solid ${ph.aiBdr}`,borderRadius:'18px 18px 18px 4px',padding:'11px 14px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',fontSize:13.5,lineHeight:'1.72',color:'#374151',whiteSpace:'pre-wrap'}}>
+            {msg.text}
+          </div>
+        )}
+        {/* Quick chips */}
+        {msg.chips && <QuickChips chips={msg.chips} onSelect={onChipSelect} phase={phase} />}
+        {/* Structured selects (Phase 2) */}
+        {msg.selectType && <StructSelect type={msg.selectType} onSelect={onChipSelect} phase={phase} />}
+        {/* Summary card */}
+        {msg.summaryCard && <SummaryCard card={msg.summaryCard} />}
+        {/* Company cards */}
+        {msg.companyCards && <CompanyCards cards={msg.companyCards} />}
+        {/* Interview prep */}
+        {msg.prepCards && <PrepCards items={msg.prepCards} />}
+      </div>
+    </div>
+  );
+}
+
+/* User message bubble */
+function UserBubble({ msg, phase }) {
+  const usedPhase = msg.atPhase || phase;
+  return (
+    <div className="msg-in" style={{display:'flex',justifyContent:'flex-end',marginBottom:16}}>
+      <div style={{maxWidth:'75%',background:P[usedPhase].usr,color:'white',borderRadius:'18px 18px 4px 18px',padding:'10px 14px',fontSize:13.5,lineHeight:'1.65',boxShadow:'0 2px 10px rgba(0,0,0,0.14)',whiteSpace:'pre-wrap'}}>
+        {msg.text}
+      </div>
+    </div>
+  );
+}
+
+/* Settings / Debug sheet */
+function SettingsSheet({ onClose, apiKey, setApiKey, phase, onDebugPhase }) {
+  const [localKey, setLocalKey] = useState(apiKey);
+  const save = () => { setApiKey(localKey); localStorage.setItem('rn_key', localKey); onClose(); };
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.52)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:999}} onClick={onClose}>
+      <div style={{width:'100%',maxWidth:420,background:'white',borderRadius:'24px 24px 0 0',padding:'0 20px 36px'}} onClick={e=>e.stopPropagation()}>
+        <div style={{width:40,height:4,background:'#E5E7EB',borderRadius:2,margin:'14px auto 20px'}} />
+        <h2 style={{fontWeight:800,fontSize:16,color:'#111827',marginBottom:16}}>設定</h2>
+
+        <div style={{marginBottom:16}}>
+          <label style={{fontSize:11,color:'#9CA3AF',display:'block',marginBottom:5}}>Gemini API Key（入力でリアルAIと接続 / 未入力はモック動作）</label>
+          <input type="password" value={localKey} onChange={e=>setLocalKey(e.target.value)}
+            placeholder="AIzaSy..."
+            style={{width:'100%',border:'1px solid #E5E7EB',borderRadius:12,padding:'10px 14px',fontSize:14,outline:'none',fontFamily:'inherit',boxSizing:'border-box'}}/>
+          <p style={{fontSize:11,color:'#9CA3AF',marginTop:4}}>
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style={{color:'#4F46E5'}}>Google AI Studio</a> から無料取得できます
+          </p>
+        </div>
+        <button onClick={save}
+          style={{width:'100%',padding:'13px',background:'#4F46E5',color:'white',border:'none',borderRadius:12,fontFamily:'inherit',fontWeight:700,fontSize:14,marginBottom:16,cursor:'pointer'}}>
+          保存して閉じる
+        </button>
+
+        <div style={{borderTop:'1px solid #F3F4F6',paddingTop:14}}>
+          <label style={{fontSize:11,color:'#9CA3AF',display:'block',marginBottom:9}}>🛠 デバッグ：フェーズを切り替え</label>
+          <div style={{display:'flex',gap:8}}>
+            {[1,2,3].map(p => (
+              <button key={p} onClick={() => onDebugPhase(p)}
+                style={{flex:1,padding:'10px 4px',borderRadius:12,border:`2px solid ${phase===p ? P[p].avatar : '#E5E7EB'}`,
+                  background: phase===p ? P[p].avatar : 'white',
+                  color: phase===p ? 'white' : '#6B7280',
+                  fontFamily:'inherit',fontWeight:600,fontSize:11,cursor:'pointer',lineHeight:'1.5'}}>
+                P{p}<br/><span style={{fontSize:9,fontWeight:400,opacity:0.85}}>{P[p].name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   SYSTEM PROMPTS  (for real Gemini mode)
+══════════════════════════════════════════════════════ */
+const SYS = {
+  1: `あなたは就活AI「就活リスタートAI」のカウンセラーです。フェーズ1「感情受容」として、就活選考で落ちてショックを受けているユーザーの感情をただ受け止めてください。
+【絶対禁止】励まし・正論・アドバイス・「次がある」「大丈夫」等の言葉。
+【必須】共感・受容・感情の深掘り質問。返答は4文以内。静かで温かいトーン。
+2〜3ターン後、ユーザーの気持ちが落ち着いてきたら「少し整理してもいいかな」と自然に促し、メッセージ末尾に <<PHASE:2>> を付ける。`,
+  2: `あなたは就活AI「就活リスタートAI」のカウンセラーです。フェーズ2「状況整理」として、以下を順番に確認してください：①志望度、②落ちた選考フェーズ、③直近の予定。一度に1つだけ聞くこと。
+データが揃ったら「整理できた。次のステップに進もう」と言い、メッセージ末尾に <<PHASE:3>> を付ける。`,
+  3: `あなたは就活AI「就活リスタートAI」のカウンセラーです。フェーズ3「再行動支援」として、今回の敗因を人格否定せず「企業との接点のズレ」として整理し、次の企業選びの軸と面接対策を温かく提示してください。焦らせない。`,
+};
+
+/* ══════════════════════════════════════════════════════
+   MAIN APP
+══════════════════════════════════════════════════════ */
+function App() {
+  const [phase, setPhase]         = useState(1);
+  const [msgs,  setMsgs]          = useState([]);
+  const [input, setInput]         = useState('');
+  const [loading, setLoading]     = useState(false);
+  const [pTurn,  setPTurn]        = useState(0);   // turns within current phase
+  const [apiKey, setApiKey]       = useState(() => localStorage.getItem('rn_key') || '');
+  const [showSettings, setSettings] = useState(false);
+  const [locked, setLocked]       = useState(false); // prevent double send
+
+  // Store phase 2 collected data synchronously (avoid stale closure)
+  const p2Data = useRef({ priority:null, stage:null, schedule:null });
+  // Store Gemini conversation history (only used in API mode)
+  const apiHistory = useRef([]);
+
+  const chatEndRef = useRef(null);
+  const taRef      = useRef(null);
+
+  // Auto-scroll
+  useEffect(() => {
+    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior:'smooth' }), 60);
+  }, [msgs, loading]);
+
+  // Sync desktop background color with phase
+  useEffect(() => {
+    document.body.style.background = P[phase].bdrop;
+  }, [phase]);
+
+  // Initial AI greeting
+  useEffect(() => {
+    (async () => {
+      await sleep(600);
+      setLoading(true);
+      await sleep(1100);
+      setLoading(false);
+      pushAI({
+        text:"就活、うまくいかなかったんだね。\n\nここでは何も取り繕わなくていい。今感じてること、そのまま話してくれていいよ。",
+        chips:["もう就活やめたい…","何がダメだったんだろう","誰にも相談できない","悔しくてたまらない"],
+      });
+    })();
+  }, []);
+
+  /* ── Helpers ── */
+  const pushAI   = (data) => setMsgs(prev => [...prev, { id:uid(), role:'ai',   ...data }]);
+  const pushUser = (text, atPhase) => setMsgs(prev => [...prev, { id:uid(), role:'user', text, atPhase }]);
+  const pushBanner = (from, to) => setMsgs(prev => [...prev, { id:uid(), role:'banner', from, to }]);
+
+  /* ── textarea auto-resize ── */
+  const handleInput = e => {
+    setInput(e.target.value);
+    const ta = taRef.current;
+    if (ta) { ta.style.height='auto'; ta.style.height = Math.min(ta.scrollHeight, 100)+'px'; }
+  };
+
+  /* ── Main send logic ── */
+  const handleSend = useCallback(async (overrideText) => {
+    const text = (overrideText ?? input).trim();
+    if (!text || loading || locked) return;
+    setInput('');
+    if (taRef.current) taRef.current.style.height='auto';
+    setLocked(true);
+
+    const curPhase = phase;
+    const curTurn  = pTurn;
+    pushUser(text, curPhase);
+
+    // ── Gemini API mode ──
+    if (apiKey) {
+      apiHistory.current.push({ role:'user', parts:[{text}] });
+      setLoading(true);
+      setLocked(false);
+      try {
+        const raw = await callGeminiAPI(apiKey, apiHistory.current, SYS[curPhase]);
+        // Parse <<PHASE:N>>
+        const phM = raw.match(/<<PHASE:(\d)>>/);
+        const cleanText = raw.replace(/<<PHASE:\d>>/g,'').trim();
+        apiHistory.current.push({ role:'model', parts:[{text: cleanText}] });
+        setLoading(false);
+        pushAI({ text: cleanText });
+        if (phM) {
+          const nextPh = parseInt(phM[1]);
+          await sleep(1800);
+          pushBanner(curPhase, nextPh);
+          setPhase(nextPh);
+          setPTurn(0);
+        } else {
+          setPTurn(t => t+1);
+        }
+      } catch(e) {
+        setLoading(false);
+        pushAI({ text:'ちょっと待ってて。少ししてからもう一度話しかけてみて。' });
+      }
+      setLocked(false);
+      return;
+    }
+
+    // ── Mock mode ──
+    setLoading(true);
+
+    if (curPhase === 1) {
+      await sleep(1000 + Math.random()*700);
+      setLoading(false);
+
+      if (curTurn === 0) {
+        // First user msg → empathy
+        pushAI({
+          text: EMPATHY[detectKeyword(text)],
+          chips:["もっと聞いてほしい","なんか涙が出てきた","ほんとにつらかった","誰にも言えなかった"],
+        });
+        setPTurn(1);
+      } else if (curTurn === 1) {
+        pushAI({
+          text:`うん、ちゃんと聞こえてるよ。\n\nたくさん話してくれてありがとう。全部ちゃんと受け取ってる。\n\nあなたが感じてるしんどさ、ちゃんと伝わってる——それを抱えながら話してくれたこと、それだけで十分すごいことだと思う。\n\n少しだけ、今の状況を一緒に整理してみてもいいかな？前向きになる必要は全然ないから。ただ、あなたの今をちゃんと把握したくて。`,
+          chips:["うん、話してみる","もう少し聞いてほしい","整理してみたい"],
+        });
+        setPTurn(2);
+      } else {
+        // Turn 2+: gently push to phase 2
+        const wantTransition = /うん|整理|話して|いいよ/.test(text);
+        pushAI({ text:`うんうん、全部聞いてるよ。\n\n少しだけ、今の状況を一緒に整理してみてもいいかな？`, chips:["うん、いいよ","もう少し待って"] });
+        if (wantTransition) {
+          await sleep(1700);
+          pushBanner(1, 2);
+          setPhase(2);
+          setPTurn(0);
+          await sleep(600);
+          setLoading(true);
+          await sleep(1100);
+          setLoading(false);
+          pushAI({ text:"まず聞かせて。今回の企業って、どのくらい行きたかった？", selectType:'priority' });
+        } else {
+          setPTurn(t => t+1);
+        }
+      }
+      setLocked(false);
+      return;
+    }
+
+    if (curPhase === 2) {
+      await sleep(900 + Math.random()*600);
+      setLoading(false);
+
+      if (curTurn === 0) {
+        // Priority selected → ask stage
+        p2Data.current.priority = text;
+        const cmt = PRIORITY_CMT[text] || 'そうか、わかった。';
+        pushAI({ text:`${cmt}\n\nどの選考の段階で落ちたか、教えてもらえる？`, selectType:'stage' });
+        setPTurn(1);
+      } else if (curTurn === 1) {
+        // Stage selected → ask schedule
+        p2Data.current.stage = text;
+        const cmt = STAGE_CMT[text] || 'そっか、ここまで来れたこと自体、すごいことだよ。';
+        pushAI({ text:`${cmt}\n\n直近に別の企業の面接や締め切りはある？`, selectType:'schedule' });
+        setPTurn(2);
+      } else if (curTurn === 2) {
+        // Schedule selected → transition prompt
+        p2Data.current.schedule = text;
+        const cmt = SCHED_CMT[text] || 'そうか。ペースを見ながら一緒に考えていこう。';
+        pushAI({
+          text:`${cmt}\n\n今から一緒にやりたいのは、「なぜ落ちたのか」を人格否定じゃなくて——企業とあなたの接点がどこにズレてたか、って角度で整理すること。準備できた？`,
+          chips:["うん、整理したい","正直まだキツいけど聞く","少し待って"],
+        });
+        setPTurn(3);
+      } else {
+        // Turn 3: user responded to transition prompt
+        const wantNext = /うん|整理|聞く|進む|はい/.test(text);
+        if (wantNext) {
+          pushBanner(2, 3);
+          setPhase(3);
+          setPTurn(0);
+          await sleep(700);
+          setLoading(true);
+          await sleep(1300);
+          setLoading(false);
+          // Phase 3 auto-chain
+          pushAI({
+            text:"整理するね。今回の結果を、あなたの「欠点」としてじゃなく、「企業との接点のどこにズレがあったか」として見てみよう。",
+            summaryCard: buildSummaryCard(),
+          });
+          setPTurn(1);
+          // Auto-send company cards
+          await sleep(2800);
+          setLoading(true);
+          await sleep(1400);
+          setLoading(false);
+          pushAI({
+            text:"この分析をもとに、次の企業選びのヒントが見えてくるよ。あなたの話を聞いてイメージした企業を挙げるね。",
+            companyCards: buildCompanyCards(),
+          });
+          setPTurn(2);
+        } else {
+          pushAI({ text:"うん、待てるよ。準備できたらいつでも言って。", chips:["準備できた","もう少し話したい"] });
+          setPTurn(t=>t+1);
+        }
+      }
+      setLocked(false);
+      return;
+    }
+
+    if (curPhase === 3) {
+      await sleep(1000 + Math.random()*600);
+      setLoading(false);
+
+      if (curTurn === 2) {
+        pushAI({
+          text:"次の面接に向けて、特に意識してほしいポイントを絞ってみたよ。今すぐじゃなくていい。頭の片隅に置いておいてくれたら。",
+          prepCards: buildInterviewPrep(),
+        });
+        setPTurn(3);
+      } else {
+        // Open support
+        pushAI({
+          text:"何か他に気になること、不安に思ってること、話したいことはある？\n\nここにいるから、いつでも話しかけてね。",
+          chips:["面接練習がしたい","ES添削してほしい","別の企業の相談","今日はここまでにする"],
+        });
+        setPTurn(t=>t+1);
+      }
+      setLocked(false);
+      return;
+    }
+
+    setLoading(false);
+    setLocked(false);
+  }, [input, loading, locked, phase, pTurn, apiKey]);
+
+  /* ── Debug: jump to phase ── */
+  const debugJump = (p) => {
+    setPhase(p); setPTurn(0); setSettings(false);
+    setMsgs(prev => [...prev, {id:uid(), role:'banner', from:phase, to:p}]);
+    if (p === 2) {
+      setTimeout(() => pushAI({text:"まず聞かせて。今回の企業って、どのくらい行きたかった？", selectType:'priority'}), 300);
+    } else if (p === 3) {
+      setTimeout(() => {
+        pushAI({text:"整理するね。今回の結果を、あなたの「欠点」としてじゃなく、「企業との接点のどこにズレがあったか」として見てみよう。", summaryCard:buildSummaryCard()});
+      }, 300);
+    }
+  };
+
+  const ph = P[phase];
+
+  return (
+    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+
+      {/* ── Phone Frame ── */}
+      <div
+        className="phone-frame phase-bg"
+        style={{
+          width:'100%', maxWidth:393,
+          height:'min(812px, 94vh)',
+          borderRadius:44,
+          overflow:'hidden',
+          display:'flex', flexDirection:'column',
+          background: ph.bg,
+          position:'relative',
+        }}
+      >
+        {/* Status bar */}
+        <div style={{display:'flex',justifyContent:'space-between',padding:'13px 24px 0',flexShrink:0}}>
+          <span style={{fontSize:11,fontWeight:700,color:'rgba(0,0,0,0.35)'}}>9:41</span>
+          <div style={{display:'flex',gap:3,alignItems:'center'}}>
+            <span style={{fontSize:9,color:'rgba(0,0,0,0.25)'}}>●●●</span>
+          </div>
+        </div>
+
+        {/* Header */}
+        <div style={{background:ph.hdr,padding:'12px 16px 14px',flexShrink:0,transition:'background 0.8s ease'}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:11}}>
+            <div>
+              <h1 style={{color:'white',fontWeight:900,fontSize:17,letterSpacing:'-0.02em',margin:0}}>就活リスタートAI</h1>
+              <p style={{color:'rgba(255,255,255,0.68)',fontSize:10.5,margin:'2px 0 0'}}>{ph.tip.slice(0,22)}…</p>
+            </div>
+            <button onClick={() => setSettings(true)}
+              style={{width:32,height:32,borderRadius:'50%',background:'rgba(255,255,255,0.2)',border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'white'}}>
+              <SettingsIcon />
+            </button>
+          </div>
+
+          {/* Phase progress bar */}
+          <div style={{display:'flex',gap:5,alignItems:'center'}}>
+            {[1,2,3].map((n,i) => {
+              const done   = phase > n;
+              const active = phase === n;
+              return (
+                <React.Fragment key={n}>
+                  <div style={{flex:1}}>
+                    <div style={{height:3,borderRadius:2,background:'rgba(255,255,255,0.22)',overflow:'hidden',marginBottom:3}}>
+                      <div style={{height:'100%',background:'white',borderRadius:2,
+                        width: done ? '100%' : active ? '55%' : '0%',
+                        transition:'width 0.6s ease'}} />
+                    </div>
+                    <p style={{fontSize:9,textAlign:'center',
+                      color: active ? 'white' : done ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.35)',
+                      fontWeight: active ? 700 : 400, margin:0}}>
+                      ①②③[n]— {/* */}{P[n].name}
+                    </p>
+                  </div>
+                  {i<2 && <span style={{color:'rgba(255,255,255,0.3)',fontSize:10,paddingBottom:12}}>›</span>}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Chat scroll area */}
+        <div ref={null} className="chat-scroll" style={{flex:1,overflowY:'auto',padding:'14px 14px 6px'}}>
+          {msgs.map(m => {
+            if (m.role==='banner') return <PhaseBanner key={m.id} from={m.from} to={m.to} />;
+            if (m.role==='ai')     return <AIBubble key={m.id} msg={m} phase={phase} onChipSelect={handleSend} />;
+            return <UserBubble key={m.id} msg={m} phase={phase} />;
+          })}
+          {loading && <TypingBubble phase={phase} />}
+          <div ref={chatEndRef} />
+        </div>
+
+        {/* Phase tip */}
+        <div style={{padding:'3px 16px 5px',textAlign:'center',flexShrink:0}}>
+          <p style={{fontSize:10,color:'rgba(0,0,0,0.26)',margin:0}}>{ph.tip}</p>
+        </div>
+
+        {/* Input area */}
+        <div style={{padding:'8px 12px',paddingBottom:'max(20px, env(safe-area-inset-bottom, 20px))',background:'rgba(255,255,255,0.72)',backdropFilter:'blur(12px)',borderTop:'1px solid rgba(0,0,0,0.07)',flexShrink:0}}>
+          {/* Phase 1 quick chips above input */}
+          {phase===1 && msgs.length===0 && (
+            <div style={{display:'flex',flexWrap:'wrap',gap:7,marginBottom:9}}>
+              {["もう就活やめたい…","何がダメだったんだろう","誰にも相談できない","悔しくてたまらない"].map((c,i) => (
+                <button key={i} className="chip" onClick={() => handleSend(c)}
+                  style={{fontSize:11,padding:'5px 12px',borderRadius:999,background:ph.sel.bg,border:`1px solid ${ph.sel.bdr}`,color:ph.sel.txt}}>
+                  {c}
+                </button>
+              ))}
+            </div>
+          )}
+          <div style={{display:'flex',gap:8,alignItems:'flex-end'}}>
+            {/* Mic icon button */}
+            <button onClick={() => alert('音声入力はChrome / Safari でサポートされています。現在はデモ版のため、テキスト入力をお使いください。')}
+              style={{width:36,height:36,borderRadius:'50%',border:`1px solid rgba(0,0,0,0.1)`,background:'white',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0,color:'#9CA3AF'}}>
+              <MicIcon />
+            </button>
+            <textarea
+              ref={taRef}
+              value={input}
+              onChange={handleInput}
+              onKeyDown={e => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); handleSend(); } }}
+              placeholder={ph.ph}
+              rows={1}
+              style={{flex:1,resize:'none',border:'1px solid rgba(0,0,0,0.1)',borderRadius:22,padding:'10px 14px',fontSize:14,color:'#374151',fontFamily:'inherit',outline:'none',lineHeight:'1.45',background:'white',maxHeight:100,scrollbarWidth:'none'}}
+            />
+            <button
+              onClick={() => handleSend()}
+              disabled={loading || !input.trim()}
+              style={{
+                width:40,height:40,borderRadius:'50%',border:'none',
+                background: (!loading && input.trim()) ? ph.usr : '#E5E7EB',
+                color: (!loading && input.trim()) ? 'white' : '#9CA3AF',
+                display:'flex',alignItems:'center',justifyContent:'center',
+                cursor: (!loading && input.trim()) ? 'pointer' : 'not-allowed',
+                flexShrink:0, transition:'all 0.18s',
+                boxShadow: (!loading && input.trim()) ? `0 2px 10px ${ph.usr}60` : 'none',
+              }}>
+              <SendIcon />
+            </button>
+          </div>
+        </div>
+      </div>{/* /phone-frame */}
+
+      {/* Settings Sheet */}
+      {showSettings && (
+        <SettingsSheet
+          onClose={() => setSettings(false)}
+          apiKey={apiKey}
+          setApiKey={k => { setApiKey(k); localStorage.setItem('rn_key',k); }}
+          phase={phase}
+          onDebugPhase={debugJump}
+        />
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
