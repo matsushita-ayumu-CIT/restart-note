@@ -25,7 +25,9 @@
           animation: {
             'fade-in': 'fadeIn 0.25s ease-out forwards',
             'slide-up': 'slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            'pop-card': 'popCard 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
             'pulse-subtle': 'pulseSubtle 2s infinite ease-in-out',
+            'shimmer': 'shimmer 2s infinite linear',
           },
           keyframes: {
             fadeIn: {
@@ -33,12 +35,20 @@
               '100%': { opacity: 1 },
             },
             slideUp: {
-              '0%': { opacity: 0, transform: 'translateY(10px)' },
+              '0%': { opacity: 0, transform: 'translateY(12px)' },
               '100%': { opacity: 1, transform: 'translateY(0)' },
+            },
+            popCard: {
+              '0%': { opacity: 0, transform: 'scale(0.93) translateY(14px)' },
+              '100%': { opacity: 1, transform: 'scale(1) translateY(0)' },
             },
             pulseSubtle: {
               '0%, 100%': { transform: 'scale(1)', opacity: 0.95 },
               '50%': { transform: 'scale(1.03)', opacity: 1 },
+            },
+            shimmer: {
+              '0%': { backgroundPosition: '-200% 0' },
+              '100%': { backgroundPosition: '200% 0' },
             }
           }
         }
@@ -56,9 +66,9 @@
     /* iPhone Frame Styling on Desktop */
     @media (min-width: 640px) {
       .mobile-device-frame {
-        width: 410px;
-        height: 854px;
-        max-height: calc(100vh - 18px);
+        width: 416px;
+        height: 870px;
+        max-height: calc(100vh - 16px);
         border-radius: 46px;
         box-shadow: 
           0 0 0 10px #1e293b,
@@ -85,6 +95,15 @@
       0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
       40% { transform: scale(1); opacity: 1; }
     }
+
+    /* Selected trigger animation */
+    .chip-selected-animate {
+      transform: scale(0.96);
+      background-color: #ea580c !important;
+      color: #ffffff !important;
+      border-color: #c2410c !important;
+      transition: all 0.25s ease-out;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-800 antialiased min-h-screen flex items-center justify-center p-0 sm:p-2 select-none">
@@ -97,7 +116,7 @@
   </div>
 
   <!-- Mobile Screen App Container -->
-  <div id="appRoot" class="mobile-device-frame relative w-full h-[100dvh] sm:h-[854px] bg-[#FAF8F5] theme-transition flex flex-col overflow-hidden shadow-2xl">
+  <div id="appRoot" class="mobile-device-frame relative w-full h-[100dvh] sm:h-[870px] bg-[#FAF8F5] theme-transition flex flex-col overflow-hidden shadow-2xl">
     
     <!-- Dynamic Island / Speaker notch (visible on desktop) -->
     <div class="hidden sm:flex absolute top-3 left-1/2 -translate-x-1/2 w-28 h-5 bg-slate-900 rounded-full z-50 items-center justify-end px-3">
@@ -105,7 +124,7 @@
     </div>
 
     <!-- ─── HEADER ─────────────────────────────────────────────────────────── -->
-    <header id="appHeader" class="pt-3 sm:pt-9 pb-2.5 px-3.5 bg-white/85 backdrop-blur-md border-b border-orange-100/80 theme-transition shrink-0 z-40">
+    <header id="appHeader" class="pt-3 sm:pt-9 pb-2 px-3 bg-white/90 backdrop-blur-md border-b border-orange-100/80 theme-transition shrink-0 z-40">
       
       <!-- Top Row: App Title & Action Buttons -->
       <div class="flex items-center justify-between mb-2">
@@ -123,16 +142,16 @@
                 ① 感情受容
               </span>
             </div>
-            <p id="headerSubtitle" class="text-[10px] sm:text-[11px] text-slate-500 font-medium">悔しさを吐き出して心を整える</p>
+            <p id="headerSubtitle" class="text-[10px] sm:text-[11px] text-slate-500 font-medium">絶望を受け止め、心をゆっくり休める</p>
           </div>
         </div>
 
         <!-- Header Buttons -->
         <div class="flex items-center space-x-1 shrink-0">
-          <!-- Auto Demo Button -->
-          <button id="btnAutoDemo" title="フルストーリーを自動実演" class="flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold text-amber-800 bg-amber-100/90 hover:bg-amber-200 border border-amber-300 transition active:scale-95 shadow-xs">
-            <svg class="w-3 h-3 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            <span>デモ再生</span>
+          <!-- Auto Demo Toggle Button (Play / Pause) -->
+          <button id="btnAutoDemo" title="フルストーリーを自動実演" class="flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 transition active:scale-95 shadow-xs">
+            <svg id="demoIcon" class="w-3 h-3 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span id="demoBtnText">デモ再生</span>
           </button>
 
           <!-- Reset Chat Button -->
@@ -142,44 +161,48 @@
             </svg>
             <span>リセット</span>
           </button>
-
-          <!-- API & Debug Settings Button -->
-          <button id="btnSettings" title="設定" class="flex items-center space-x-0.5 p-1.5 rounded-full text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition active:scale-95">
-            <svg class="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-            </svg>
-          </button>
         </div>
+      </div>
+
+      <!-- Point 1: Scenario Switcher Tabs (Pattern A vs Pattern B) -->
+      <div class="mb-2 p-1 bg-slate-100/90 rounded-xl flex items-center gap-1 border border-slate-200/60">
+        <button id="btnScenarioA" onclick="switchScenario('A')" class="flex-1 py-1 px-2 rounded-lg text-[10.5px] font-bold transition-all text-center flex items-center justify-center space-x-1 bg-white text-orange-700 shadow-xs border border-orange-200">
+          <span>🚨 パターンA: 第一志望・最終落ち</span>
+          <span class="text-[9px] font-normal text-rose-600 hidden sm:inline">(直近面接あり)</span>
+        </button>
+        <button id="btnScenarioB" onclick="switchScenario('B')" class="flex-1 py-1 px-2 rounded-lg text-[10.5px] font-bold transition-all text-center flex items-center justify-center space-x-1 text-slate-600 hover:text-slate-800">
+          <span>☕ パターンB: 滑り止め・ES落ち</span>
+          <span class="text-[9px] font-normal text-slate-400 hidden sm:inline">(1週間余裕)</span>
+        </button>
       </div>
 
       <!-- Phase Progress Bar (3 Steps: ①感情受容 ➔ ②状況整理 ➔ ③再行動支援) -->
       <div class="grid grid-cols-3 gap-1 px-0.5">
         <!-- Step 1 -->
-        <button onclick="setPhase(1)" id="stepTab-1" class="group flex flex-col items-center py-1.5 px-1 rounded-xl transition-all duration-300 text-center bg-orange-50 border border-orange-300 text-orange-700 shadow-xs">
+        <button onclick="setPhase(1)" id="stepTab-1" class="group flex flex-col items-center py-1 px-1 rounded-xl transition-all duration-300 text-center bg-orange-50 border border-orange-300 text-orange-700 shadow-xs">
           <div class="flex items-center space-x-1 text-[11px] font-bold">
-            <span class="w-3.5 h-3.5 rounded-full bg-orange-500 text-white flex items-center justify-center text-[9px]">1</span>
+            <span id="tabBadge-1" class="w-3.5 h-3.5 rounded-full bg-orange-500 text-white flex items-center justify-center text-[9px]">1</span>
             <span>感情受容</span>
           </div>
           <span class="text-[9px] text-orange-600/90 font-normal">絶望の傾聴・受容</span>
         </button>
 
         <!-- Step 2 -->
-        <button onclick="setPhase(2)" id="stepTab-2" class="group flex flex-col items-center py-1.5 px-1 rounded-xl transition-all duration-300 text-center bg-slate-50 border border-slate-200 text-slate-400 hover:bg-slate-100">
+        <button onclick="setPhase(2)" id="stepTab-2" class="group flex flex-col items-center py-1 px-1 rounded-xl transition-all duration-300 text-center bg-slate-50 border border-slate-200 text-slate-400 hover:bg-slate-100">
           <div class="flex items-center space-x-1 text-[11px] font-bold">
-            <span class="w-3.5 h-3.5 rounded-full bg-slate-300 text-slate-600 flex items-center justify-center text-[9px]">2</span>
+            <span id="tabBadge-2" class="w-3.5 h-3.5 rounded-full bg-slate-300 text-slate-600 flex items-center justify-center text-[9px]">2</span>
             <span>状況整理</span>
           </div>
           <span class="text-[9px] text-slate-400 font-normal">ES深掘・弱点分析</span>
         </button>
 
         <!-- Step 3 -->
-        <button onclick="setPhase(3)" id="stepTab-3" class="group flex flex-col items-center py-1.5 px-1 rounded-xl transition-all duration-300 text-center bg-slate-50 border border-slate-200 text-slate-400 hover:bg-slate-100">
+        <button onclick="setPhase(3)" id="stepTab-3" class="group flex flex-col items-center py-1 px-1 rounded-xl transition-all duration-300 text-center bg-slate-50 border border-slate-200 text-slate-400 hover:bg-slate-100">
           <div class="flex items-center space-x-1 text-[11px] font-bold">
-            <span class="w-3.5 h-3.5 rounded-full bg-slate-300 text-slate-600 flex items-center justify-center text-[9px]">3</span>
+            <span id="tabBadge-3" class="w-3.5 h-3.5 rounded-full bg-slate-300 text-slate-600 flex items-center justify-center text-[9px]">3</span>
             <span>再行動支援</span>
           </div>
-          <span class="text-[9px] text-slate-400 font-normal">企業推薦・面接対策</span>
+          <span class="text-[9px] text-slate-400 font-normal">企業推薦・伴走</span>
         </button>
       </div>
     </header>
@@ -190,7 +213,7 @@
     </main>
 
     <!-- ─── QUICK REPLIES / TRIAGE SELECTION BAR ───────────────────────────── -->
-    <div id="quickReplyBar" class="px-3 py-2 bg-white/80 backdrop-blur-sm border-t border-slate-100 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0 theme-transition">
+    <div id="quickReplyBar" class="px-3 py-2 bg-white/85 backdrop-blur-sm border-t border-slate-100 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0 theme-transition">
       <!-- Quick chips injected via JS based on Phase & Context -->
     </div>
 
@@ -228,75 +251,7 @@
           </svg>
         </button>
       </form>
-
-      <!-- Recording indicator tooltip -->
-      <div id="micIndicator" class="hidden mt-2 py-1 px-3 bg-rose-50 border border-rose-200 text-rose-600 text-[11px] rounded-lg items-center justify-between animate-fade-in">
-        <div class="flex items-center space-x-1.5">
-          <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
-          <span class="font-medium">🎤 音声認識中…（声で気持ちを話してみてね）</span>
-        </div>
-        <button type="button" onclick="stopSpeechRecognition()" class="text-rose-600 font-bold hover:underline text-[10px]">停止</button>
-      </div>
     </footer>
-
-    <!-- ─── SETTINGS & DEBUG MODAL ─────────────────────────────────────────── -->
-    <div id="settingsModal" class="hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-      <div class="bg-white rounded-3xl w-full max-w-sm p-5 shadow-2xl space-y-4 border border-slate-100">
-        <div class="flex items-center justify-between pb-2 border-b border-slate-100">
-          <div class="flex items-center space-x-2">
-            <span class="text-base">⚙️</span>
-            <h2 class="text-sm font-bold text-slate-800">アプリ設定・デバッグ</h2>
-          </div>
-          <button onclick="toggleSettingsModal(false)" class="p-1 rounded-full text-slate-400 hover:bg-slate-100">
-            <svg class="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-
-        <!-- Manual Phase Switcher -->
-        <div class="space-y-1.5">
-          <label class="text-[11px] font-bold text-slate-600 uppercase tracking-wider">フェーズの手動切替 (動作確認用)</label>
-          <div class="grid grid-cols-3 gap-1.5">
-            <button onclick="setPhase(1); toggleSettingsModal(false);" class="py-2 px-1 text-[11px] font-bold rounded-xl bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 text-center">
-              ① 感情受容
-            </button>
-            <button onclick="setPhase(2); toggleSettingsModal(false);" class="py-2 px-1 text-[11px] font-bold rounded-xl bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 text-center">
-              ② 状況整理
-            </button>
-            <button onclick="setPhase(3); toggleSettingsModal(false);" class="py-2 px-1 text-[11px] font-bold rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 text-center">
-              ③ 再行動支援
-            </button>
-          </div>
-        </div>
-
-        <!-- LLM Mode Selection -->
-        <div class="space-y-2 pt-2 border-t border-slate-100">
-          <label class="text-[11px] font-bold text-slate-600 uppercase tracking-wider">AI応答エンジン</label>
-          <select id="aiModeSelect" class="w-full text-xs py-2 px-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-orange-400 text-slate-700 font-medium">
-            <option value="mock">内蔵シナリオモック (APIキー不要・即座に応答)</option>
-            <option value="gemini">Google Gemini API (APIキー要)</option>
-            <option value="openai">OpenAI API (GPT-4o-mini / APIキー要)</option>
-          </select>
-        </div>
-
-        <!-- API Key Input -->
-        <div id="apiKeySection" class="space-y-1.5 hidden">
-          <label class="text-[11px] font-bold text-slate-600">APIキー</label>
-          <input 
-            type="password" 
-            id="apiKeyInput" 
-            placeholder="AI Studio または OpenAI のAPIキーを入力"
-            class="w-full text-xs py-2 px-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-orange-400 text-slate-700"
-          />
-          <p class="text-[10px] text-slate-400">※キーはブラウザのローカルメモリにのみ保持され、外部には送信されません。</p>
-        </div>
-
-        <div class="pt-2 flex justify-end space-x-2">
-          <button onclick="toggleSettingsModal(false)" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold transition shadow-md">
-            設定を保存して閉じる
-          </button>
-        </div>
-      </div>
-    </div>
 
   </div>
 
@@ -313,44 +268,58 @@
      * STATE MANAGEMENT
      * ─────────────────────────────────────────────────────────────────────── */
     const STATE = {
-      phase: 1, // 1: 感情受容, 2: 状況整理, 3: 再行動支援
-      aiMode: 'mock',
-      apiKey: '',
+      scenario: 'A', // 'A': 重度（第一志望最終落ち・直近他社あり） | 'B': 軽度（滑り止めES落ち・余裕あり）
+      phase: 1,      // 1: 感情受容, 2: 状況整理, 3: 再行動支援
       history: [],
       turnCountInPhase: 0,
-      conversationStep: 1, // Detailed step tracker for deep counseling
+      isDemoPlaying: false,
+      demoTimer: null,
       isWaitingAi: false,
     };
 
-    /* ─── INITIAL WELCOME MESSAGE (TARGETING TARGET PERSONA) ─── */
+    /* ─── INITIAL WELCOME MESSAGES PER SCENARIO ─── */
     const INITIAL_MESSAGES = {
-      1: {
+      A: {
         role: 'ai',
-        text: 'お疲れさまでした……。\nずっと心血を注ぎ、何ヶ月も準備を重ねてきた【第一志望】の企業。\nその【最終面接（役員面接）】まで死力を尽くして進んだあとの、不採用（お祈り）通知……。\n\nメールを開いた瞬間、心臓を強くえぐられたような感覚と、目の前が真っ暗になる絶望感に襲われたよね。\n\n今は前なんて1ミリも向かなくていいし、反省なんて絶対にしないで。\n部屋のカーテンを閉め切って、ベッドから起き上がれなくなっているその悔しさ、悲しさ、そのままここに吐き出してね。\n私はあなたを絶対に否定しないし、最後まで味方だからね。',
+        text: 'お疲れさまでした……。\nずっと心血を注ぎ、何ヶ月も準備を重ねてきた【第一志望】の企業。\nその【最終面接（役員面接）】まで死力を尽くして進んだあとの、不採用（お祈り）通知……。\n\nメールを開いた瞬間、心臓を強くえぐられたような衝撃と、目の前が真っ暗になる絶望感に襲われたよね。\n\n今は前なんて1ミリも向かなくていいし、反省なんて絶対にしないで。\n部屋のカーテンを閉め切って、ベッドから起き上がれなくなっているその悔しさ、悲しさ、そのままここに吐き出してね。私は最後まであなたの味方だからね。',
+        time: getCurrentTime(),
+      },
+      B: {
+        role: 'ai',
+        text: 'お疲れさまでした。\n持ち駒として受けた企業のES（書類選考）での不採用通知……。\n「滑り止めのつもりだったのに落ちるなんて…」と、プライドが傷ついたり、今後の就活への漠然とした不安が湧いてくるよね。\n\n次の企業の選考予定まではまだ1週間ほど日数があるよ。\nまずは焦らずに、いま感じているモヤモヤやショックをここに吐き出して、気持ちを整えていこう。',
         time: getCurrentTime(),
       }
     };
 
-    /* ─── QUICK REPLY CHIPS (ALIGNED WITH PERSONA PROGRESSION) ─── */
+    /* ─── QUICK REPLY CHIPS PER SCENARIO ─── */
     const QUICK_CHIPS = {
-      phase1: [
-        { label: '💔 4年間すべて否定された気分…もう何もしたくない', text: 'もう就活やめたい…第一志望だったのに最終面接で落ちて、自分の全人格も、大学4年間頑張ってきたすべてを否定されたみたいで涙が止まらない…もうどうでもいい、何もやりたくない' },
-        { label: '😭 親や友達にも顔向けできない…部屋で震えてる', text: '親や周りの友達にもずっと第一志望って受かる風に言ってたから、落ちたなんて恥ずかしくて誰にも言えない…あんなに準備した自分が情けなくて、ただ部屋で毛布かぶって震えてる' },
-        { label: '🍵 少し吐き出せて落ち着いてきた…話を聞いて', text: 'いっぱい吐き出して泣いたら、少しだけ胸の苦しさが和らいだ気がする…でも、まだ身体が鉛みたいに重くて動かない' },
-        { label: '🚪 なぜ最終でダメだったのか原因を整理したい', text: '少し眠って温かいものを飲んだら、頭のモヤが少し晴れてきたよ…なぜあの第一志望の役員面接で落ちてしまったのか、少しだけ一緒に原因を整理してみてくれる？', action: 'goto_phase2' },
-      ],
-      phase2: [
-        { label: '📄 最終まで通ったES・ガクチカを見てもらいたい', text: '最終面接まで通過していたES（ガクチカ）を見てもらいたい。カフェでの新人離職率を下げるためにマニュアルを作って教育したエピソードなんだけど、どこかおかしかったのかな？' },
-        { label: '💭 自分が本当に好きなこと・やりがいを深掘りしたい', text: '数字の達成やマニュアルで規則通りに動かすこと自体にはあまりワクワクしなくて、悩んでいた新人スタッフが「先輩のおかげでバイトが楽しくなりました！」って笑顔で言ってくれたとき、一番心から嬉しくてやりがいを感じたんだ' },
-        { label: '🏢 役員面接で突っ込まれて詰まった質問を話したい', text: '役員から「うちの会社は徹底したトップダウンで、売上至上主義で泥臭く数字を追わせる組織だが、君はついてこれるか？」と鋭く詰められたんだ。そこで固まってしまい、「が、頑張ります…」としか言えなくて、熱意が嘘っぽく見えて見抜かれてしまったんだと思う' },
-        { label: '📊 弱点データと自己分析の再定義カードを見る', text: '自分を全否定されたわけじゃなくて、企業とのカルチャーのすれ違いだったんだ…弱点分析と自己分析の再定義を元に、次へ進みたい！', action: 'goto_phase3' },
-      ],
-      phase3: [
-        { label: '🧭 カルチャー不一致の企業推薦フィルターを見る', text: '自分のこの「伴走型エンパワーメント力」が本当に活きる企業や業界を知りたい！' },
-        { label: '🏢 伴走力を評価してくれるおすすめ企業3社を見る', text: '自分の強みを求めてくれるおすすめ企業3社と、そのマッチ理由を詳しく知りたい！' },
-        { label: '⚔️ 役員面接リベンジ必勝武器カードを見る', text: '次回の面接で、前回の「トップダウンへの詰まり」を突っ込まれたらどう答えればいい？' },
-        { label: '🎯 模擬面接と弱み重点フィードバック講評を受ける', text: 'おすすめ企業を想定した面接シミュレーションをお願いしたい！弱みが克服できているかフィードバックしてほしい' },
-      ]
+      A: {
+        phase1: [
+          { label: '💔 4年間すべて否定された気分…何もしたくない', text: 'もう就活やめたい…第一志望だったのに最終面接で落ちて、自分の全人格も、大学4年間頑張ってきたすべてを否定されたみたいで涙が止まらない…もうどうでもいい、何もやりたくない' },
+          { label: '😭 親や友達にも顔向けできない…部屋で震えてる', text: '親や周りの友達にもずっと第一志望って受かる風に言ってたから、落ちたなんて恥ずかしくて誰にも言えない…あんなに準備した自分が情けなくて、ただ部屋で毛布かぶって震えてる' },
+        ],
+        phase2: [
+          { label: '📄 最終まで通ったES・ガクチカを見てもらいたい', text: '最終面接まで通過していたES（ガクチカ）を見てもらいたい。カフェでの新人離職率を下げるためにマニュアルを作って教育したエピソードなんだけど、どこかおかしかったのかな？' },
+          { label: '🏢 役員面接で逆質問と理念の深掘りで詰まった', text: '役員面接で「うちの企業理念の何に共感し、泥臭く体現できるか？」と深掘りされたとき、形式的なことしか言えず詰まってしまった…現場の課題解決プロセスを語るべきだったのかな' },
+        ],
+        phase3: [
+          { label: '🧭 構造化メモと企業推薦フィルターを見る', text: '今回の失敗を構造化したメモと、自動生成された企業検索フィルターを教えて！' },
+          { label: '🚀 モジュール3：再行動・個別伴走メニューを見る', text: '明後日のB社面接に向けた具体的な想定質問リストと、おすすめ求人メニューを確認したい！' },
+        ]
+      },
+      B: {
+        phase1: [
+          { label: '😣 滑り止めで落ちて自信を失った…', text: '滑り止めの企業だったのに書類で落ちて、自分はどこにも受からないんじゃないかってショックを受けてる…' },
+          { label: '🍵 まだ1週間あるから落ち着いてESを見直したい', text: '次の面接まで1週間あるから、焦らず客観的にESのどこが弱かったのか見直してみたい' },
+        ],
+        phase2: [
+          { label: '📄 落ちたESの自己PRを添削してほしい', text: '落ちてしまったESの自己PRを見てもらいたい。具体性や再現性が足りなかったのかな？' },
+          { label: '💡 自分の強みをもっと尖らせるには？', text: '型通りの優等生的な表現になっていた気がする。自分の独自の強みをもっと際立たせたい' },
+        ],
+        phase3: [
+          { label: '📊 ES改善チェックリストと推薦求人を見る', text: 'ブラッシュアップされた自己分析と、来週に向けて受けるべきおすすめ求人を教えて！' },
+        ]
+      }
     };
 
     /* ─── THEME CONFIGURATION ─── */
@@ -372,21 +341,21 @@
       2: {
         name: '状況整理',
         badge: '② 状況整理・深掘りカウンセリング',
-        subtitle: 'ES深掘り・役員面接の問答分析・自己分析更新',
+        subtitle: 'ES深掘り・問答分析・自己分析更新',
         appBg: '#F3F6FA',
         activeTabBg: 'bg-blue-50 border-blue-300 text-blue-700 shadow-xs',
         inactiveTabBg: 'bg-slate-50 border-slate-200 text-slate-400',
         badgeClass: 'bg-blue-100 text-blue-700',
         avatarGrad: 'from-blue-500 to-indigo-500 shadow-blue-300/50',
         btnSendBg: 'bg-blue-600 hover:bg-blue-700 shadow-blue-300',
-        inputPlaceholder: 'ESの内容や、役員面接で手こずった質問を教えてね',
+        inputPlaceholder: 'ESの内容や、面接で手こずった質問を教えてね',
         userBubbleBg: 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-blue-200',
         aiBubbleBg: 'bg-white text-slate-800 border border-blue-100 shadow-xs',
       },
       3: {
         name: '再行動支援',
-        badge: '③ 再行動支援',
-        subtitle: '企業推薦・役員面接リベンジ対策',
+        badge: '③ 再行動支援・個別伴走',
+        subtitle: '失敗の構造化・個別伴走メニュー提供',
         appBg: '#F0F9F5',
         activeTabBg: 'bg-emerald-50 border-emerald-300 text-emerald-700 shadow-xs',
         inactiveTabBg: 'bg-slate-50 border-slate-200 text-slate-400',
@@ -403,57 +372,10 @@
      * INITIALIZATION
      * ─────────────────────────────────────────────────────────────────────── */
     function initApp() {
-      const savedKey = localStorage.getItem('restart_ai_key');
-      const savedMode = localStorage.getItem('restart_ai_mode');
-      if (savedKey) {
-        STATE.apiKey = savedKey;
-        const el = document.getElementById('apiKeyInput');
-        if (el) el.value = savedKey;
-      }
-      if (savedMode) {
-        STATE.aiMode = savedMode;
-        const el = document.getElementById('aiModeSelect');
-        if (el) el.value = savedMode;
-        if (savedMode !== 'mock') {
-          const sec = document.getElementById('apiKeySection');
-          if (sec) sec.classList.remove('hidden');
-        }
-      }
-
-      const aiModeSelect = document.getElementById('aiModeSelect');
-      if (aiModeSelect) {
-        aiModeSelect.addEventListener('change', (e) => {
-          STATE.aiMode = e.target.value;
-          localStorage.setItem('restart_ai_mode', e.target.value);
-          const sec = document.getElementById('apiKeySection');
-          if (sec) {
-            if (e.target.value === 'mock') {
-              sec.classList.add('hidden');
-            } else {
-              sec.classList.remove('hidden');
-            }
-          }
-        });
-      }
-
-      const apiKeyInput = document.getElementById('apiKeyInput');
-      if (apiKeyInput) {
-        apiKeyInput.addEventListener('input', (e) => {
-          STATE.apiKey = e.target.value.trim();
-          localStorage.setItem('restart_ai_key', STATE.apiKey);
-        });
-      }
-
-      const btnSettings = document.getElementById('btnSettings');
-      if (btnSettings) {
-        btnSettings.addEventListener('click', () => {
-          toggleSettingsModal(true);
-        });
-      }
-
       const btnReset = document.getElementById('btnReset');
       if (btnReset) {
         btnReset.addEventListener('click', () => {
+          stopAutoDemo();
           resetAll();
         });
       }
@@ -461,19 +383,19 @@
       const btnAutoDemo = document.getElementById('btnAutoDemo');
       if (btnAutoDemo) {
         btnAutoDemo.addEventListener('click', () => {
-          runAutoDemoStory();
+          toggleAutoDemo();
         });
       }
 
       const btnMic = document.getElementById('btnMic');
       if (btnMic) {
         btnMic.addEventListener('click', () => {
-          toggleSpeechRecognition();
+          simulateVoiceInput();
         });
       }
 
       setPhase(1, false);
-      appendMessage(INITIAL_MESSAGES[1].role, INITIAL_MESSAGES[1].text);
+      appendMessage(INITIAL_MESSAGES[STATE.scenario].role, INITIAL_MESSAGES[STATE.scenario].text);
       updateQuickChips();
     }
 
@@ -484,7 +406,29 @@
     }
 
     /* ───────────────────────────────────────────────────────────────────────
-     * PHASE SWITCHING & THEME DYNAMICS
+     * POINT 1: SCENARIO SWITCHING (PATTERN A vs PATTERN B)
+     * ─────────────────────────────────────────────────────────────────────── */
+    function switchScenario(scenarioKey) {
+      if (STATE.scenario === scenarioKey && !STATE.isDemoPlaying) return;
+      stopAutoDemo();
+      STATE.scenario = scenarioKey;
+
+      const btnA = document.getElementById('btnScenarioA');
+      const btnB = document.getElementById('btnScenarioB');
+
+      if (scenarioKey === 'A') {
+        btnA.className = 'flex-1 py-1 px-2 rounded-lg text-[10.5px] font-bold transition-all text-center flex items-center justify-center space-x-1 bg-white text-orange-700 shadow-xs border border-orange-200';
+        btnB.className = 'flex-1 py-1 px-2 rounded-lg text-[10.5px] font-bold transition-all text-center flex items-center justify-center space-x-1 text-slate-600 hover:text-slate-800';
+      } else {
+        btnB.className = 'flex-1 py-1 px-2 rounded-lg text-[10.5px] font-bold transition-all text-center flex items-center justify-center space-x-1 bg-white text-blue-700 shadow-xs border border-blue-200';
+        btnA.className = 'flex-1 py-1 px-2 rounded-lg text-[10.5px] font-bold transition-all text-center flex items-center justify-center space-x-1 text-slate-600 hover:text-slate-800';
+      }
+
+      resetAll();
+    }
+
+    /* ───────────────────────────────────────────────────────────────────────
+     * PHASE SWITCHING
      * ─────────────────────────────────────────────────────────────────────── */
     function setPhase(newPhase, announce = true) {
       STATE.phase = newPhase;
@@ -501,17 +445,19 @@
 
       for (let i = 1; i <= 3; i++) {
         const tab = document.getElementById(`stepTab-${i}`);
+        const badge = document.getElementById(`tabBadge-${i}`);
         if (i === newPhase) {
-          tab.className = `group flex flex-col items-center py-1.5 px-1 rounded-xl transition-all duration-300 text-center ${theme.activeTabBg}`;
-          tab.querySelector('span:first-child').className = `w-4 h-4 rounded-full ${theme.btnSendBg.split(' ')[0]} text-white flex items-center justify-center text-[10px] font-bold shadow-xs`;
+          tab.className = `group flex flex-col items-center py-1 px-1 rounded-xl transition-all duration-300 text-center ${theme.activeTabBg}`;
+          badge.className = `w-3.5 h-3.5 rounded-full ${theme.btnSendBg.split(' ')[0]} text-white flex items-center justify-center text-[9px] font-bold shadow-xs`;
+          badge.innerHTML = i;
         } else if (i < newPhase) {
-          tab.className = `group flex flex-col items-center py-1.5 px-1 rounded-xl transition-all duration-300 text-center bg-white/70 border border-slate-200 text-slate-500`;
-          tab.querySelector('span:first-child').className = `w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-bold`;
-          tab.querySelector('span:first-child').innerHTML = '✓';
+          tab.className = `group flex flex-col items-center py-1 px-1 rounded-xl transition-all duration-300 text-center bg-white/70 border border-slate-200 text-slate-500`;
+          badge.className = `w-3.5 h-3.5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[9px] font-bold`;
+          badge.innerHTML = '✓';
         } else {
-          tab.className = `group flex flex-col items-center py-1.5 px-1 rounded-xl transition-all duration-300 text-center ${theme.inactiveTabBg}`;
-          tab.querySelector('span:first-child').className = `w-4 h-4 rounded-full bg-slate-300 text-slate-600 flex items-center justify-center text-[10px]`;
-          tab.querySelector('span:first-child').innerHTML = i;
+          tab.className = `group flex flex-col items-center py-1 px-1 rounded-xl transition-all duration-300 text-center ${theme.inactiveTabBg}`;
+          badge.className = `w-3.5 h-3.5 rounded-full bg-slate-300 text-slate-600 flex items-center justify-center text-[9px]`;
+          badge.innerHTML = i;
         }
       }
 
@@ -525,10 +471,13 @@
 
       if (announce) {
         if (newPhase === 2) {
-          appendMessage('ai', '気持ちをたくさん吐き出してくれて、本当にありがとう。少しずつ心の波が落ち着いてきたね。\n\nここからは【② 状況整理と深掘りカウンセリング】に入ろう。\n落ちた原因はあなたの人間性や能力不足なんかじゃないということを、一つひとつの事実（提出したES・役員面接の問答）から丁寧に解き明かしていこうね。');
+          if (STATE.scenario === 'A') {
+            appendMessage('ai', '気持ちを教えてくれてありがとう。「明後日に別のB社の面接がある」んだね。\nショックの真っ只中に次の面接が重なっている今は、まさに【緊急タスク重複のトリアージ】が必要な局面だよ。\n\n今日は落ち込みすぎず、明後日のB社に向けて「今回の最終面接で何が問われ、どこで詰まってしまったのか」を最小限の負荷でサクッと整理しよう！');
+          } else {
+            appendMessage('ai', '気持ちを吐き出してくれてありがとう。次の予定まで1週間あるから、落ち着いてじっくり見直せるね。\n\nここからは【② 状況整理・ES分析】に入ろう。落ちたESのエピソードを一緒に振り返って、どこを改善できるか見ていこう！');
+          }
         } else if (newPhase === 3) {
-          appendMessage('ai', '弱点と本当の強みの言語化、本当にお疲れさまでした！\n\nここからは【③ 再行動支援】のフェーズです。\n整理した「カルチャー不一致」と「あなたの本当の強み」を自動変換し、おすすめの企業検索フィルターと求人、そして役員面接リベンジ対策をお届けするよ！');
-          renderCultureToFilterCard();
+          appendMessage('ai', '敗因の言語化と自己分析のアップデート、お見事です！\n\nここからは【③ 再行動支援・個別伴走メニュー】をお届けします。今回の反省を踏まえた「敗因構造化メモ」をリアルタイム生成したよ！');
         }
       }
 
@@ -612,14 +561,11 @@
       const chipBar = document.getElementById('quickReplyBar');
       chipBar.innerHTML = '';
 
+      const currentChips = QUICK_CHIPS[STATE.scenario];
       let chips = [];
-      if (STATE.phase === 1) {
-        chips = QUICK_CHIPS.phase1;
-      } else if (STATE.phase === 2) {
-        chips = QUICK_CHIPS.phase2;
-      } else if (STATE.phase === 3) {
-        chips = QUICK_CHIPS.phase3;
-      }
+      if (STATE.phase === 1) chips = currentChips.phase1;
+      else if (STATE.phase === 2) chips = currentChips.phase2;
+      else if (STATE.phase === 3) chips = currentChips.phase3;
 
       chips.forEach(chip => {
         const btn = document.createElement('button');
@@ -633,13 +579,7 @@
         }`;
         btn.innerHTML = `<span>${chip.label}</span>`;
         btn.onclick = () => {
-          if (chip.action === 'goto_phase2') {
-            setPhase(2);
-          } else if (chip.action === 'goto_phase3') {
-            setPhase(3);
-          } else {
-            sendUserMessage(chip.text);
-          }
+          sendUserMessage(chip.text);
         };
         chipBar.appendChild(btn);
       });
@@ -666,16 +606,12 @@
         let reply = '';
         let badge = null;
 
-        // Self-blame / despair detection
-        const isDespairOrSelfBlame = (
-          text.includes('4年間') || text.includes('全人格') || text.includes('否定') || 
-          text.includes('何もやりたくない') || text.includes('どうでもいい') || text.includes('毛布') || text.includes('情けない')
-        );
-        if (STATE.phase === 1 && isDespairOrSelfBlame) {
+        // Check self-blame detection in Phase 1
+        if (STATE.phase === 1 && (text.includes('4年間') || text.includes('全人格') || text.includes('否定') || text.includes('何もやりたくない') || text.includes('どうでもいい'))) {
           badge = { text: '🧡 メンタルケア：深い自責と絶望感を受容', className: 'bg-rose-100 text-rose-700 border border-rose-200' };
         }
 
-        await new Promise(r => setTimeout(r, 800 + Math.random() * 400));
+        await new Promise(r => setTimeout(r, 700 + Math.random() * 300));
         reply = generateMockResponse(text);
 
         removeTypingIndicator();
@@ -693,393 +629,418 @@
       }
     }
 
+    /* ─── POINT 2: IN-CHAT TRANSITION TRIGGER CHIPS ─── */
+    function renderPhase1TransitionTrigger(containerId, options, selectedCallback) {
+      const chatArea = document.getElementById('chatScrollArea');
+      const triggerWrapper = document.createElement('div');
+      triggerWrapper.id = containerId;
+      triggerWrapper.className = 'w-full my-2.5 p-3 bg-white/95 rounded-2xl border border-orange-200 shadow-sm animate-slide-up space-y-2';
+      
+      triggerWrapper.innerHTML = `
+        <div class="flex items-center space-x-1.5 text-orange-800 font-bold text-xs">
+          <span>👇</span>
+          <span>これからの過ごし方を選んでみよう（あなたのペースでOK）：</span>
+        </div>
+        <div class="flex flex-col gap-1.5" id="${containerId}_options">
+        </div>
+      `;
+
+      const optionsContainer = triggerWrapper.querySelector(`#${containerId}_options`);
+
+      options.forEach((opt, idx) => {
+        const btn = document.createElement('button');
+        btn.id = `${containerId}_opt_${idx}`;
+        btn.className = `w-full text-left p-2.5 rounded-xl border text-xs font-semibold transition-all flex items-center justify-between ${
+          opt.isPrimary 
+            ? 'bg-orange-50/90 border-orange-300 text-orange-900 hover:bg-orange-100'
+            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+        }`;
+        btn.innerHTML = `
+          <span>${opt.label}</span>
+          <span class="text-[10px] text-orange-600 font-bold">選択 ➔</span>
+        `;
+        btn.onclick = () => {
+          btn.classList.add('chip-selected-animate');
+          setTimeout(() => {
+            triggerWrapper.remove();
+            selectedCallback(opt);
+          }, 350);
+        };
+        optionsContainer.appendChild(btn);
+      });
+
+      chatArea.appendChild(triggerWrapper);
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
     /* ─── POST-RESPONSE EVENT & RICH CARDS TRIGGER ─── */
     function handlePostResponseEvents(userText) {
-      if (STATE.phase === 1 && (userText.includes('毛布') || userText.includes('落ち着いてきた') || STATE.turnCountInPhase >= 3)) {
+      // Phase 1 -> Show Transition Trigger Chip (Point 2)
+      if (STATE.phase === 1 && (userText.includes('親') || userText.includes('友達') || userText.includes('毛布') || STATE.turnCountInPhase >= 2)) {
         setTimeout(() => {
-          renderMentalCarePrescriptionCard();
-          setTimeout(() => {
-            appendMessage('ai', '少しでも心の重荷が降りてきたら、今回の【第一志望・役員面接】で「何が起きていたのか」を一緒に紐解いてみませんか？\n上の【② 状況整理】タブを押すか、下の選択肢から進めます。');
-          }, 800);
-        }, 600);
-      }
-
-      if (STATE.phase === 2) {
-        if (userText.includes('ES') || userText.includes('ガクチカ')) {
-          setTimeout(() => {
-            renderEsDeepDiveCard();
-          }, 600);
-        } else if (userText.includes('役員') || userText.includes('トップダウン') || userText.includes('手こずった') || userText.includes('固まって')) {
-          setTimeout(() => {
-            renderWeaknessAndValueCard();
+          if (STATE.scenario === 'A') {
+            appendMessage('ai', '誰にも言えなくて、たった一人で毛布にくるまって震えていたんだね……。その孤独と悔しさ、痛いほどわかるよ。\n少しだけ深呼吸してみようか。今の心の状態に合わせて、これからどう過ごすか一緒に選べるよ。');
             setTimeout(() => {
-              appendMessage('ai', '弱点と本当の強みの因数分解が完了しました！\nこの分析データを使って、あなたを心から歓迎してくれる企業検索フィルターと役員面接武器カードを作る【③ 再行動支援】へ進みましょう！');
-            }, 800);
-          }, 600);
-        }
+              renderPhase1TransitionTrigger('p1_trigger_A', [
+                { label: '⚡ 少し落ち着いたかも。実は明後日、別のB社の面接がある…', text: '少し落ち着いたかも。実は明後日、別のB社の面接があるんだ…パニックになりそうだからどうすべきか整理したい', isPrimary: true, action: 'triage_B' },
+                { label: '🛌 今日はもう何もしたくないから泥のように休みたい', text: '今日はもう何もしたくないから泥のように休むよ', isPrimary: false, action: 'rest' }
+              ], (chosen) => {
+                sendUserMessage(chosen.text);
+                setTimeout(() => setPhase(2), 800);
+              });
+            }, 600);
+          } else {
+            appendMessage('ai', '滑り止めと思っていたからこそ、余計にショックだったよね。\nでも次の選考までまだ1週間日数もあるし、焦らなくて大丈夫だよ。どうしたいか教えてね。');
+            setTimeout(() => {
+              renderPhase1TransitionTrigger('p1_trigger_B', [
+                { label: '📄 今回のESのどこがダメだったか客観的に見直したい', text: '今回のESのどこがダメだったか客観的に見直してみたい', isPrimary: true, action: 'review_es' },
+                { label: '☕ 今日はとりあえず息抜きして明日からやる', text: '今日はとりあえず息抜きして明日から頑張るよ', isPrimary: false, action: 'rest' }
+              ], (chosen) => {
+                sendUserMessage(chosen.text);
+                setTimeout(() => setPhase(2), 800);
+              });
+            }, 600);
+          }
+        }, 500);
       }
 
-      if (STATE.phase === 3) {
-        if (userText.includes('おすすめ企業') || userText.includes('3社')) {
+      // Phase 2 -> Phase 3 Structure Card Trigger (Point 3 & 4)
+      if (STATE.phase === 2 && (userText.includes('理念') || userText.includes('逆質問') || userText.includes('詰まった') || userText.includes('突っ込まれ'))) {
+        setTimeout(() => {
+          // Transition to Phase 3 with Realtime Pop Animation
+          setPhase(3);
           setTimeout(() => {
-            renderRecommendedCompaniesCard();
-          }, 600);
-        } else if (userText.includes('武器カード') || userText.includes('リベンジ') || userText.includes('テンプレート')) {
-          setTimeout(() => {
-            renderInterviewWeaponCard();
-          }, 600);
-        } else if (userText.includes('シミュレーション') || userText.includes('模擬面接') || userText.includes('フィードバック')) {
-          setTimeout(() => {
-            renderInterviewFeedbackCard();
-          }, 600);
-        }
+            renderRealtimeStructureCard();
+            setTimeout(() => {
+              renderModule3ActionCard();
+            }, 1200);
+          }, 800);
+        }, 700);
       }
     }
 
-    /* ─── REALISTIC COUNSELING RESPONSE GENERATOR (ALIGNED WITH PERSONA) ─── */
+    /* ─── REALISTIC COUNSELING RESPONSE GENERATOR ─── */
     function generateMockResponse(userText) {
       if (STATE.phase === 1) {
         if (userText.includes('4年間') || userText.includes('全人格') || userText.includes('何もやりたくない') || userText.includes('どうでもいい')) {
-          return '【絶対にあなたが悪いんじゃないよ】\n「4年間のすべてを否定された」「もうどうでもいい、何もやりたくない」……そう思ってしまうの、本当に本当に無理もないよ。\n\n高校を卒業してからの大学4年間、サークルもバイトも勉強も、全部この「第一志望」に入りたい一心で積み重ねてきたんだもんね。\n\nそれがたった1通の定型文メールで突き返されたら、これまでの人生や自分の存在そのものを否定されたように感じるのが当たり前だよ。\n\n今は何もやりたくなくていい。部屋に引きこもってていい。無理に前なんて絶対に向かなくていいんだよ。まずはその絶望を、全部ここに置いていって。';
+          return '【絶対にあなたが悪いんじゃないよ】\n「4年間のすべてを否定された」「もうどうでもいい、何もやりたくない」……そう思ってしまうの、本当に無理もないよ。\n\n高校を卒業してからの大学4年間、サークルもバイトも勉強も、全部この「第一志望」に入りたい一心で積み重ねてきたんだもんね。\n\nそれがたった1通の冷たいお祈りメールで突き返されたら、これまでの人生や自分の存在そのものを否定されたように感じるのが当たり前だよ。\n今は何もやりたくなくていい。部屋に引きこもっていていい。その絶望を、無理にポジティブに変えようとしなくていいんだよ。';
         }
-        if (userText.includes('親') || userText.includes('友達') || userText.includes('毛布') || userText.includes('情けない')) {
-          return '誰にも言えなくて、たった一人で毛布にくるまって震えていたんだね……。その孤独と悔しさ、胸が張り裂けそうだよ。\n\nでもね、「情けない」「恥ずかしい」と感じるのは、あなたが誰よりも本気で、誰よりも誠実にこの第一志望に向き合ってきた証拠だよ。適当に受けていたなら、そんなに胸は痛まないはずだから。\n\n親御さんや友達への報告なんて、今は一切後回しでいい。誰にも連絡しなくていいから、まずは深く息を吸って、毛布の中で泣き尽くしてね。';
+        if (userText.includes('滑り止め') || userText.includes('自信を失った')) {
+          return '滑り止めと思っていた企業だからこそ、「自分はどこにも受からないんじゃないか」って余計に自信を削られてしまうよね……。\nでもね、書類選考の不採用はあなたの能力不足ではなく、単にESの「書き方のフォーカス」が少し企業とズレていただけなんだよ。\n大丈夫。次の予定まで時間はあるから、焦らず立て直していこう。';
         }
-        if (userText.includes('落ち着いてきた') || userText.includes('鉛') || userText.includes('和らいだ')) {
-          return 'いっぱい吐き出して泣けたんだね。涙が出るのは、張り詰めていた心が少しずつ息を取り戻してきたサインだよ。\n\n身体が鉛みたいに重いのは当然。今日まで極限のプレッシャーの中で一人で走り続けてきたんだから。\n今日は「就活生」をやめて、ただの「疲れた一人の人間」として過ごそう。温かいものを飲んで、泥のように眠っていいんだよ。';
-        }
-        return 'その気持ち、教えてくれてありがとう。第一志望の最終面接という一番過酷な痛みを、私は絶対に軽く扱わないよ。誰にも見せられない弱音、全部ここで受け止めるからね。';
+        return 'その気持ち、教えてくれてありがとう。悔しさも絶望も、あなたが本気で挑んできた尊い証拠だよ。誰にも言えない弱音、全部ここで受け止めるからね。';
       }
 
       if (STATE.phase === 2) {
+        if (userText.includes('明後日') || userText.includes('B社')) {
+          return '【緊急トリアージ判定：直近リカバリー優先】\n明後日にB社の一次面接があるんだね！ショックが残る中で本当にきついタイミングだけど、よく話してくれたね。\n\n第一志望の落ち込みを引きずったまま臨むのは危険だから、まずは今回の第一志望の役員面接で「何が問われ、どこで手こずってしまったのか」を短時間で客観的に整理しよう！';
+        }
         if (userText.includes('ES') || userText.includes('ガクチカ')) {
-          return '最終面接まで通過していたES（ガクチカ）を教えてくれてありがとう！\n「カフェでの新人スタッフ離職率を下げるマニュアル作成」というエピソード、本当に素晴らしいよ。何百人という応募者の中から役員面接の数名にまで残ったのは、あなたの主体性と問題解決力が本物だったからに他ならないよ。\n\nここで1つ、あなたの心の原点をカウンセリングさせてね。\nこのマニュアル作りと指導の中で、あなたが「一番ワクワクした瞬間」や「本当に心からやりがいを感じたこと」は何だった？';
+          return '最終面接まで通過していたES（ガクチカ）を教えてくれてありがとう！\n「カフェでの新人離職率を下げるマニュアル作成」というエピソード、本当に素晴らしいよ。何百人という応募者の中から役員面接の数名にまで残ったのは、あなたの主体性が本物だったからに他ならないよ。\n\nでは、あの緊迫した役員面接の場で、役員から「何を聞かれ、どこで詰まってしまったのか」を教えてくれるかな？';
         }
-        if (userText.includes('笑顔') || userText.includes('寄り添って') || userText.includes('バイトが楽しく')) {
-          return 'その言葉を聞いて、すごく胸が熱くなったよ……！\nあなたのモチベーションの源泉は「数字や規則で人を機械的に管理すること」ではなく、「一人ひとりの個性に寄り添い、その人が自信を持って輝けるように伴走すること」なんだね。それがあなたの真の価値観であり、誰にも真似できない最大の才能だよ。\n\nでは次に、あの緊迫した役員面接で、企業側から「何が問われ、どこで手こずってしまったのか」を教えてくれるかな？';
-        }
-        if (userText.includes('トップダウン') || userText.includes('数字至上主義') || userText.includes('固まって') || userText.includes('詰められ')) {
-          return 'その場の空気、どれほど緊迫して息が詰まる思いだったか伝わってくるよ……。\nでもね、これだけはハッキリと言わせてほしい。\n\nこの最終面接で詰まってしまったのは、あなたの面接力が低かったからじゃないよ。\n「徹底したトップダウン・数字至上主義で人を動かす企業のカルチャー」と、「人の心に寄り添い自走を促すあなたの魂の価値観」が、真っ向から不一致を起こしていただけなんだ。\n\n役員はあなたの人格を否定したのではなく、「この優しい子がうちの激しい数字競争に入ったら心が壊れてしまう」と見抜いて、マッチングを見送ったんだよ。\n\n抽出されたデータから、あなたの【就活弱点】と【真の強み・譲れない価値観】を整理カードにまとめたよ！';
-        }
-        return '状況を深く教えてくれてありがとう。一歩ずつ、客観的な事実へと昇華できているよ！';
+        return '状況を教えてくれてありがとう。一歩ずつ、客観的な事実へと昇華できているよ！';
       }
 
       if (STATE.phase === 3) {
-        if (userText.includes('フィルター') || userText.includes('推薦軸')) {
-          return '第一志望でのカルチャー不一致データを自動変換し、あなたの「伴走型エンパワーメント力」が最高に活きる「企業推薦フィルター」を生成したよ！';
-        }
-        if (userText.includes('おすすめ企業') || userText.includes('3社')) {
-          return 'あなたのように「人の心に寄り添い、個の才能を開花させられる人材」を喉から手が出るほど欲しがっている、厳選おすすめ企業3社をピックアップしたよ！';
-        }
-        if (userText.includes('武器') || userText.includes('リベンジ') || userText.includes('テンプレート')) {
-          return '前回の役員面接で詰まってしまった「トップダウン数字主義への違和感」を、次回の面接で最強の志望動機にひっくり返す【必勝武器カード】を授けるね！';
-        }
-        if (userText.includes('シミュレーション') || userText.includes('模擬面接') || userText.includes('フィードバック')) {
-          return 'おすすめ企業を想定した面接シミュレーションと、前回の弱点を完全に武器へ昇華できているかの【重点フィードバック講評】を作成したよ！';
-        }
         return '確実に次への武器が揃ったね！自信を持って次の一歩を踏み出そう！';
       }
 
       return 'うんうん、その調子で整理していこうね。';
     }
 
-    /* ─── RICH CARDS RENDERING ─── */
-
-    // 1. Phase 1: メンタルケア処方箋カード
-    function renderMentalCarePrescriptionCard() {
+    /* ───────────────────────────────────────────────────────────────────────
+     * POINT 3: REALTIME STRUCTURED SUMMARY CARD
+     * ─────────────────────────────────────────────────────────────────────── */
+    function renderRealtimeStructureCard() {
       const chatArea = document.getElementById('chatScrollArea');
       const card = document.createElement('div');
-      card.className = 'w-full my-2.5 p-3.5 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border border-orange-200/90 shadow-xs animate-slide-up space-y-2.5';
-      card.innerHTML = `
-        <div class="flex items-center space-x-1.5 text-orange-800 font-bold text-xs border-b border-orange-200/60 pb-1.5">
-          <span>🍵</span>
-          <span>今夜の処方箋（非就活メンタルケア）</span>
-        </div>
-        <p class="text-[11px] text-slate-700 leading-relaxed">
-          就活の傷は「気合い」ではなく「休息と栄養」で癒すのが鉄則です。<br/>
-          今日はこれ以上スマホで就活情報を調べるのをやめて、以下の3つだけをやって自分を甘やかしてあげてください。
-        </p>
-        <div class="grid grid-cols-3 gap-1.5 text-[10px] text-center font-semibold text-orange-800">
-          <div class="bg-white/80 p-2 rounded-xl border border-orange-100">
-            <span class="text-sm">🍰</span><br/>好きなスイーツ
-          </div>
-          <div class="bg-white/80 p-2 rounded-xl border border-orange-100">
-            <span class="text-sm">♨️</span><br/>長めの入浴
-          </div>
-          <div class="bg-white/80 p-2 rounded-xl border border-orange-100">
-            <span class="text-sm">🛌</span><br/>8時間以上の睡眠
-          </div>
-        </div>
-      `;
-      chatArea.appendChild(card);
-      chatArea.scrollTop = chatArea.scrollHeight;
-    }
-
-    // 2. Phase 2: ES深掘りカード
-    function renderEsDeepDiveCard() {
-      const chatArea = document.getElementById('chatScrollArea');
-      const card = document.createElement('div');
-      card.className = 'w-full my-2.5 p-3.5 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-200/90 shadow-xs animate-slide-up space-y-2';
-      card.innerHTML = `
-        <div class="flex items-center space-x-1.5 text-blue-900 font-bold text-xs border-b border-blue-200/60 pb-1.5">
-          <span>📄</span>
-          <span>提出ESエピソード分析（ガクチカ深掘り）</span>
-        </div>
-        <div class="bg-white/90 p-2.5 rounded-xl border border-blue-100 space-y-1 text-[11px] text-slate-700">
-          <div class="font-bold text-blue-800">【題材】：カフェでの新人離職率改善マニュアル作成</div>
-          <p class="text-slate-600 leading-relaxed">
-            何百人もの応募者の中から役員面接の数名に選ばれた理由：単なる業務効率化ではなく、<strong>「現場の個々人が自信を持って自走できる仕組みを作った」</strong>という高い主体性と問題解決力が評価されていた。
-          </p>
-        </div>
-      `;
-      chatArea.appendChild(card);
-      chatArea.scrollTop = chatArea.scrollHeight;
-    }
-
-    // 3. Phase 2: 弱点分析 & 自己分析再定義カード
-    function renderWeaknessAndValueCard() {
-      const chatArea = document.getElementById('chatScrollArea');
-      const card = document.createElement('div');
-      card.className = 'w-full my-2.5 p-3.5 bg-gradient-to-br from-indigo-50 via-slate-50 to-blue-50 rounded-2xl border border-indigo-200 shadow-sm animate-slide-up space-y-3';
-      card.innerHTML = `
-        <div class="flex items-center justify-between border-b border-indigo-200/70 pb-2">
-          <div class="flex items-center space-x-1.5 text-indigo-900 font-bold text-xs">
-            <span>📊</span>
-            <span>役員面接データ分析 ＆ 自己分析アップデート</span>
-          </div>
-          <span class="text-[9px] font-bold bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full">再定義完了</span>
-        </div>
-
-        <div class="bg-white/90 p-2.5 rounded-xl border border-indigo-100 space-y-1">
-          <div class="text-[11px] font-bold text-rose-700 flex items-center space-x-1">
-            <span>⚠️</span>
-            <span>役員面接での詰まり・弱点データ</span>
-          </div>
-          <p class="text-[11px] text-slate-600 leading-relaxed">
-            「徹底したトップダウン×売上至上主義」という企業風土に対して、無意識に価値観の拒絶反応が起き、回答に迷いが生じてしまった（カルチャーの根本的不一致）。
-          </p>
-        </div>
-
-        <div class="bg-white/90 p-2.5 rounded-xl border border-indigo-100 space-y-1">
-          <div class="text-[11px] font-bold text-emerald-700 flex items-center space-x-1">
-            <span>💎</span>
-            <span>再定義された「本当に譲れない強み・価値観」</span>
-          </div>
-          <p class="text-[11px] text-slate-700 leading-relaxed">
-            ・<strong>譲れない価値観</strong>：数値を機械的に追わせるのではなく、メンバーの自発性と心理的安全性を尊重する組織づくり<br/>
-            ・<strong>真の強み</strong>：相手の心に寄り添い、個のポテンシャルを開花させる「伴走型エンパワーメント力」
-          </p>
-        </div>
-      `;
-      chatArea.appendChild(card);
-      chatArea.scrollTop = chatArea.scrollHeight;
-    }
-
-    // 4. Phase 3: 企業推薦軸カード
-    function renderCultureToFilterCard() {
-      const chatArea = document.getElementById('chatScrollArea');
-      const card = document.createElement('div');
-      card.className = 'w-full my-2.5 p-3.5 bg-gradient-to-br from-emerald-50 via-teal-50 to-sky-50 rounded-2xl border border-emerald-200 shadow-sm animate-slide-up space-y-2.5';
-      card.innerHTML = `
-        <div class="flex items-center space-x-1.5 text-emerald-900 font-bold text-xs border-b border-emerald-200/70 pb-2">
-          <span>🧭</span>
-          <span>カルチャー不一致 ➔ 企業推薦軸・フィルター自動変換</span>
-        </div>
-
-        <div class="grid grid-cols-2 gap-2 text-[10px]">
-          <div class="bg-rose-50/90 p-2 rounded-xl border border-rose-200 text-rose-800">
-            <div class="font-bold flex items-center space-x-0.5 mb-1">
-              <span>❌</span><span>不採用企業のカルチャー</span>
-            </div>
-            中央集権・トップダウン・売上至上主義・減点方式の競争
-          </div>
-          <div class="bg-emerald-50/90 p-2 rounded-xl border border-emerald-200 text-emerald-800">
-            <div class="font-bold flex items-center space-x-0.5 mb-1">
-              <span>⭕</span><span>あなたが活きるカルチャー</span>
-            </div>
-            自律分散・ボトムアップ・伴走型マネジメント・加点方式
-          </div>
-        </div>
-
-        <div class="bg-white/90 p-2.5 rounded-xl border border-emerald-100">
-          <div class="text-[10px] font-bold text-slate-700 mb-1.5">生成された求人検索フィルター条件：</div>
-          <div class="flex flex-wrap gap-1">
-            <span class="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-md">#自律分散型組織</span>
-            <span class="text-[10px] bg-teal-100 text-teal-800 font-semibold px-2 py-0.5 rounded-md">#伴走型HRTech/SaaS</span>
-            <span class="text-[10px] bg-sky-100 text-sky-800 font-semibold px-2 py-0.5 rounded-md">#若手裁量権・プロセス評価</span>
-            <span class="text-[10px] bg-indigo-100 text-indigo-800 font-semibold px-2 py-0.5 rounded-md">#個の才能解放カルチャー</span>
-          </div>
-        </div>
-      `;
-      chatArea.appendChild(card);
-      chatArea.scrollTop = chatArea.scrollHeight;
-    }
-
-    // 5. Phase 3: おすすめ企業3選カード
-    function renderRecommendedCompaniesCard() {
-      const chatArea = document.getElementById('chatScrollArea');
-      const card = document.createElement('div');
-      card.className = 'w-full my-2.5 p-3.5 bg-gradient-to-br from-teal-50 to-emerald-50 rounded-2xl border border-teal-200 shadow-sm animate-slide-up space-y-2.5';
-      card.innerHTML = `
-        <div class="flex items-center space-x-1.5 text-teal-900 font-bold text-xs border-b border-teal-200/70 pb-2">
-          <span>🏢</span>
-          <span>あなたにマッチする厳選おすすめ企業（3選）</span>
-        </div>
-
-        <div class="space-y-2 text-[11px]">
-          <div class="bg-white/95 p-2.5 rounded-xl border border-teal-100 shadow-2xs space-y-1">
-            <div class="flex items-center justify-between">
-              <span class="font-bold text-slate-800">1. 株式会社エンパワーク（HRTech/SaaS）</span>
-              <span class="text-[9px] font-bold bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded">マッチ度 98%</span>
-            </div>
-            <p class="text-[10px] text-slate-600 leading-relaxed">
-              「個人の才能解放」を掲げ、顧客企業の自走を支援するプロダクトを展開。あなたの「寄り添い型エンパワーメント力」がダイレクトに評価される風土。
-            </p>
-          </div>
-
-          <div class="bg-white/95 p-2.5 rounded-xl border border-teal-100 shadow-2xs space-y-1">
-            <div class="flex items-center justify-between">
-              <span class="font-bold text-slate-800">2. クラフティア株式会社（自律協創プロダクト）</span>
-              <span class="text-[9px] font-bold bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded">マッチ度 94%</span>
-            </div>
-            <p class="text-[10px] text-slate-600 leading-relaxed">
-              徹底的なフラット組織。数値の強制ではなく、チームメンバーの心理的安全性を高めながら課題解決できる人材を急募中。
-            </p>
-          </div>
-
-          <div class="bg-white/95 p-2.5 rounded-xl border border-teal-100 shadow-2xs space-y-1">
-            <div class="flex items-center justify-between">
-              <span class="font-bold text-slate-800">3. コ・クリエイト株式会社（組織開発コンサル）</span>
-              <span class="text-[9px] font-bold bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded">マッチ度 91%</span>
-            </div>
-            <p class="text-[10px] text-slate-600 leading-relaxed">
-              現場の声をボトムアップで引き上げるコンサルティング。マニュアルを押し付けず、個々の強みを活かすあなたの姿勢が武器になる。
-            </p>
-          </div>
-        </div>
-      `;
-      chatArea.appendChild(card);
-      chatArea.scrollTop = chatArea.scrollHeight;
-    }
-
-    // 6. Phase 3: 面接武器カード
-    function renderInterviewWeaponCard() {
-      const chatArea = document.getElementById('chatScrollArea');
-      const card = document.createElement('div');
-      card.className = 'w-full my-2.5 p-3.5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-2xl shadow-md animate-slide-up space-y-2';
-      card.innerHTML = `
-        <div class="flex items-center space-x-1.5 font-bold text-xs border-b border-emerald-400/40 pb-1.5 text-emerald-100">
-          <span>⚔️</span>
-          <span>役員面接リベンジ！必勝武器カード</span>
-        </div>
-        <div class="space-y-1 text-[11px] leading-relaxed text-emerald-50">
-          <div class="font-bold text-yellow-300">【前回の詰まりを武器に変える志望動機の回答例】：</div>
-          <p class="bg-emerald-800/60 p-2.5 rounded-xl border border-emerald-500/40 text-[10.5px]">
-            「私はこれまでの選考経験を通じて、『決められた数値や規則をトップダウンで盲従する環境』よりも、『一人ひとりの個性を活かし自発的なチームワークを生み出す環境』でこそ最大のパフォーマンスを発揮できると確信しました。御社のように個の裁量と心理的安全性を重んじるカルチャーにおいて、私の伴走力を活かして貢献したいです。」
-          </p>
-        </div>
-      `;
-      chatArea.appendChild(card);
-      chatArea.scrollTop = chatArea.scrollHeight;
-    }
-
-    // 7. Phase 3: 面接重点フィードバック講評カード
-    function renderInterviewFeedbackCard() {
-      const chatArea = document.getElementById('chatScrollArea');
-      const card = document.createElement('div');
-      card.className = 'w-full my-2.5 p-3.5 bg-gradient-to-br from-emerald-50 via-teal-50 to-indigo-50 rounded-2xl border border-emerald-300 shadow-md animate-slide-up space-y-2.5';
-      card.innerHTML = `
-        <div class="flex items-center justify-between border-b border-emerald-200/80 pb-2">
-          <div class="flex items-center space-x-1.5 text-emerald-900 font-bold text-xs">
-            <span>🎯</span>
-            <span>役員模擬面接 重点フィードバック講評</span>
-          </div>
-          <span class="text-[9px] font-bold bg-emerald-600 text-white px-2 py-0.5 rounded-full">弱み克服度 98%</span>
-        </div>
-
-        <div class="space-y-1.5 text-[11px]">
-          <div class="bg-white/90 p-2.5 rounded-xl border border-emerald-100 space-y-1">
-            <div class="font-bold text-emerald-800 flex items-center space-x-1">
-              <span>◎</span>
-              <span>弱点克服の講評：</span>
-            </div>
-            <p class="text-slate-700 leading-relaxed">
-              前回の「トップダウンへの違和感による回答詰まり」が、単なる弱点ではなく<strong>「なぜ自社でなければならないのか」という強力な志望動機の差別化ポイント</strong>に完全に昇華されています！
-            </p>
-          </div>
-
-          <div class="bg-emerald-100/70 p-2 rounded-xl border border-emerald-200 text-emerald-900 font-medium text-[10.5px]">
-            💡 <strong>本番面接へのアドバイス</strong>：<br/>
-            「相手に寄り添った結果、具体的に新人の離職率が〇％改善した」という定量成果を一言添えるだけで、説得力が120点になります！自信を持って挑んできてください！
-          </div>
-        </div>
-      `;
-      chatArea.appendChild(card);
-      chatArea.scrollTop = chatArea.scrollHeight;
-    }
-
-    /* ─── AUTO DEMO STORY MODE (DEEP COUNSELING WALKTHROUGH) ─── */
-    async function runAutoDemoStory() {
-      if (STATE.isWaitingAi) return;
+      card.className = 'w-full my-3 p-4 bg-gradient-to-br from-indigo-50 via-sky-50 to-emerald-50 rounded-2xl border-2 border-indigo-200 shadow-md animate-pop-card space-y-3';
       
-      const btn = document.getElementById('btnAutoDemo');
-      const originalHtml = btn ? btn.innerHTML : '';
-      if (btn) {
-        btn.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 animate-ping mr-1"></span><span>カウンセリング中…</span>`;
-        btn.classList.add('opacity-80', 'pointer-events-none');
+      if (STATE.scenario === 'A') {
+        card.innerHTML = `
+          <div class="flex items-center justify-between border-b border-indigo-200/80 pb-2">
+            <div class="flex items-center space-x-1.5 text-indigo-900 font-bold text-xs">
+              <span class="text-sm">⚡</span>
+              <span>今回の失敗構造化メモ ＆ 自己分析アップデート</span>
+            </div>
+            <span class="text-[9px] font-extrabold bg-indigo-600 text-white px-2 py-0.5 rounded-full animate-pulse-subtle">リアルタイム自動生成</span>
+          </div>
+
+          <!-- 1. 敗因構造化 -->
+          <div class="bg-white/95 p-3 rounded-xl border border-indigo-100 shadow-2xs space-y-1">
+            <div class="flex items-center space-x-1 text-rose-700 font-bold text-[11px]">
+              <span>🎯</span>
+              <span>1. 今回の敗因構造化（アンマッチの因数分解）</span>
+            </div>
+            <p class="text-[11px] text-slate-700 leading-relaxed pl-1">
+              ❌ <strong>誤った反省</strong>：「自分の熱意や人格が足りなかった」<br/>
+              ⭕ <strong>構造的な真因</strong>：<strong>「逆質問・企業理念への紐づけと深掘り対応の不足」</strong>。理念重視・トップダウン型の企業において、形式的な理念共感にとどまり、現場の具体的な課題解決プロセスを語りきれなかった。
+            </p>
+          </div>
+
+          <!-- 2. アップデートされた自己分析 -->
+          <div class="bg-white/95 p-3 rounded-xl border border-indigo-100 shadow-2xs space-y-1">
+            <div class="flex items-center space-x-1 text-emerald-700 font-bold text-[11px]">
+              <span>💎</span>
+              <span>2. アップデートされた自己分析（真の強み）</span>
+            </div>
+            <p class="text-[11px] text-slate-700 leading-relaxed pl-1">
+              抽象的な企業理念への盲従よりも、<strong>「現場の生々しい課題に寄り添い、具体的なプロセスを泥臭く改善して人を自走させる伴走力」</strong>こそが最大の武器になるタイプ。
+            </p>
+          </div>
+
+          <!-- 3. 検索軸・フィルターの自動更新 -->
+          <div class="bg-white/95 p-3 rounded-xl border border-indigo-100 shadow-2xs space-y-1">
+            <div class="flex items-center space-x-1 text-sky-700 font-bold text-[11px]">
+              <span>🔄</span>
+              <span>3. 検索軸・フィルターの自動更新</span>
+            </div>
+            <div class="pl-1 pt-0.5 flex flex-wrap gap-1.5 text-[10px]">
+              <span class="bg-rose-100 text-rose-800 px-2 py-0.5 rounded font-semibold line-through">理念重視・トップダウン型</span>
+              <span class="text-slate-400 font-bold">➔</span>
+              <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">現場裁量・課題解決伴走型</span>
+              <span class="bg-sky-100 text-sky-800 px-2 py-0.5 rounded font-bold">#ボトムアップ組織</span>
+              <span class="bg-teal-100 text-teal-800 px-2 py-0.5 rounded font-bold">#HRTech・自律型SaaS</span>
+            </div>
+          </div>
+        `;
+      } else {
+        card.innerHTML = `
+          <div class="flex items-center justify-between border-b border-indigo-200/80 pb-2">
+            <div class="flex items-center space-x-1.5 text-indigo-900 font-bold text-xs">
+              <span class="text-sm">⚡</span>
+              <span>ES敗因構造化メモ ＆ 自己分析アップデート</span>
+            </div>
+            <span class="text-[9px] font-extrabold bg-blue-600 text-white px-2 py-0.5 rounded-full animate-pulse-subtle">リアルタイム自動生成</span>
+          </div>
+
+          <div class="bg-white/95 p-3 rounded-xl border border-indigo-100 shadow-2xs space-y-1">
+            <div class="flex items-center space-x-1 text-rose-700 font-bold text-[11px]">
+              <span>🎯</span>
+              <span>1. 今回の敗因構造化</span>
+            </div>
+            <p class="text-[11px] text-slate-700 leading-relaxed pl-1">
+              エピソードの具体性不足。誰でも書ける一般的な自己PRにとどまり、独自の「課題解決の泥臭いプロセス」が伝わっていなかった。
+            </p>
+          </div>
+
+          <div class="bg-white/95 p-3 rounded-xl border border-indigo-100 shadow-2xs space-y-1">
+            <div class="flex items-center space-x-1 text-emerald-700 font-bold text-[11px]">
+              <span>💎</span>
+              <span>2. アップデートされた自己分析</span>
+            </div>
+            <p class="text-[11px] text-slate-700 leading-relaxed pl-1">
+              「協調性」という抽象語を排し、<strong>「チームの摩擦を解消する具体的なファシリテーション力」</strong>として言語化を強化。
+            </p>
+          </div>
+
+          <div class="bg-white/95 p-3 rounded-xl border border-indigo-100 shadow-2xs space-y-1">
+            <div class="flex items-center space-x-1 text-sky-700 font-bold text-[11px]">
+              <span>🔄</span>
+              <span>3. 検索軸の更新</span>
+            </div>
+            <div class="pl-1 pt-0.5 flex flex-wrap gap-1.5 text-[10px]">
+              <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">#プロセス評価重視</span>
+              <span class="bg-sky-100 text-sky-800 px-2 py-0.5 rounded font-bold">#チーム協創型企業</span>
+            </div>
+          </div>
+        `;
       }
 
-      try {
-        resetAll(false);
+      chatArea.appendChild(card);
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
 
-        // ──────────────────────────────
-        // STEP 1: 感情受容 & 深い傾聴カウンセリング（3ラリー）
-        // ──────────────────────────────
-        await new Promise(r => setTimeout(r, 600));
+    /* ───────────────────────────────────────────────────────────────────────
+     * POINT 4: MODULE 3 (RE-ACTION & INDIVIDUAL ESCORT MENU) GOAL CARD
+     * ─────────────────────────────────────────────────────────────────────── */
+    function renderModule3ActionCard() {
+      const chatArea = document.getElementById('chatScrollArea');
+      const card = document.createElement('div');
+      card.className = 'w-full my-3 p-4 bg-gradient-to-br from-emerald-600 via-teal-700 to-slate-900 text-white rounded-2xl shadow-xl animate-pop-card space-y-3';
+      
+      if (STATE.scenario === 'A') {
+        card.innerHTML = `
+          <div class="flex items-center justify-between border-b border-emerald-400/40 pb-2">
+            <div class="flex items-center space-x-1.5 font-extrabold text-xs text-yellow-300">
+              <span class="text-sm">🏁</span>
+              <span>モジュール3：再行動・個別伴走メニュー（ゴール）</span>
+            </div>
+            <span class="text-[9px] font-bold bg-yellow-400 text-slate-900 px-2 py-0.5 rounded-full shadow-xs">リスタート準備完了</span>
+          </div>
+
+          <!-- 直近対策：明後日のB社面接対策 -->
+          <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-xs text-emerald-200 flex items-center space-x-1">
+                <span>⚡</span>
+                <span>直近の最優先対策：明後日のB社一次面接</span>
+              </span>
+              <span class="text-[9px] bg-rose-500 text-white font-bold px-1.5 py-0.5 rounded">緊急度：高</span>
+            </div>
+            <div class="space-y-1 text-[11px] text-emerald-50">
+              <div class="font-semibold text-yellow-200">【深掘り想定質問 ＆ 逆質問リスト（3選）】：</div>
+              <ul class="list-disc pl-4 space-y-0.5 text-[10.5px] leading-relaxed">
+                <li><strong>想定問答1</strong>：「現場で泥臭く課題解決した経験は？」➔ カフェの教育マニュアル作成時の葛藤と新人への寄り添いを回答</li>
+                <li><strong>想定問答2</strong>：「トップダウンと現場裁量、どちらが力を発揮できる？」➔ 「現場の生の声に寄り添う環境でこそ自走できます」と回答</li>
+                <li><strong>必勝逆質問</strong>：「御社で最も活躍されている若手社員に共通する、現場での行動特性は何ですか？」</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- 個別推薦求人 -->
+          <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-xs text-emerald-200 flex items-center space-x-1">
+                <span>🏢</span>
+                <span>アップデート軸に基づく個別推薦求人</span>
+              </span>
+              <span class="text-[9px] bg-emerald-400 text-slate-900 font-extrabold px-1.5 py-0.5 rounded">マッチ度 92%</span>
+            </div>
+            <div class="text-[11px] text-white">
+              <strong>C社（ITソリューション・自律分散型組織）</strong><br/>
+              <span class="text-[10px] text-emerald-100">形式的な理念共感よりも「現場での課題解決・伴走力」を最重要視するカルチャー。前回の反省がそのまま最大の強みになります。</span>
+            </div>
+          </div>
+
+          <!-- 次のアクションボタン -->
+          <div class="pt-1 flex gap-2">
+            <button onclick="alert('B社面接シミュレーションモードを開始します！')" class="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-900 font-extrabold text-xs shadow-md transition active:scale-95 text-center">
+              B社面接シミュレーション開始 ➔
+            </button>
+            <button onclick="alert('C社（ITソリューション）の推薦求人シートを表示します！')" class="py-2 px-3 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold text-xs border border-white/30 transition active:scale-95 text-center">
+              求人詳細
+            </button>
+          </div>
+        `;
+      } else {
+        card.innerHTML = `
+          <div class="flex items-center justify-between border-b border-emerald-400/40 pb-2">
+            <div class="flex items-center space-x-1.5 font-extrabold text-xs text-yellow-300">
+              <span class="text-sm">🏁</span>
+              <span>モジュール3：ESリベンジ伴走メニュー</span>
+            </div>
+            <span class="text-[9px] font-bold bg-yellow-400 text-slate-900 px-2 py-0.5 rounded-full">準備完了</span>
+          </div>
+
+          <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20 space-y-2 text-[11px]">
+            <div class="font-bold text-xs text-emerald-200">【来週に向けたESブラッシュアップ3大チェック】：</div>
+            <ul class="list-disc pl-4 space-y-0.5 text-[10.5px] text-emerald-50">
+              <li>抽象的な「協調性」を「具体的なファシリテーション」へ書き換える</li>
+              <li>困難を乗り越えた「泥臭い思考プロセス」を1行追加する</li>
+              <li>「数値成果＋周囲の感情変化」の定性定量ダブルフックを入れる</li>
+            </ul>
+          </div>
+        `;
+      }
+
+      chatArea.appendChild(card);
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    /* ───────────────────────────────────────────────────────────────────────
+     * DEMO PLAYBACK CONTROLLER (PLAY / PAUSE / RESUME)
+     * ─────────────────────────────────────────────────────────────────────── */
+    function toggleAutoDemo() {
+      if (STATE.isDemoPlaying) {
+        pauseAutoDemo();
+      } else {
+        startAutoDemo();
+      }
+    }
+
+    function pauseAutoDemo() {
+      STATE.isDemoPlaying = false;
+      clearTimeout(STATE.demoTimer);
+      const btn = document.getElementById('btnAutoDemo');
+      const text = document.getElementById('demoBtnText');
+      const icon = document.getElementById('demoIcon');
+      if (btn) {
+        text.textContent = '再開';
+        icon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
+        btn.className = 'flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 transition active:scale-95 shadow-xs';
+      }
+    }
+
+    function stopAutoDemo() {
+      STATE.isDemoPlaying = false;
+      clearTimeout(STATE.demoTimer);
+      const btn = document.getElementById('btnAutoDemo');
+      const text = document.getElementById('demoBtnText');
+      const icon = document.getElementById('demoIcon');
+      if (btn) {
+        text.textContent = 'デモ再生';
+        icon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
+        btn.className = 'flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 transition active:scale-95 shadow-xs';
+      }
+    }
+
+    async function startAutoDemo() {
+      STATE.isDemoPlaying = true;
+      const btn = document.getElementById('btnAutoDemo');
+      const text = document.getElementById('demoBtnText');
+      const icon = document.getElementById('demoIcon');
+      if (btn) {
+        text.textContent = '一時停止';
+        icon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+        btn.className = 'flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold text-white bg-amber-600 hover:bg-amber-700 border border-amber-600 transition active:scale-95 shadow-xs';
+      }
+
+      resetAll(false);
+
+      if (STATE.scenario === 'A') {
+        // Pattern A: Severe Shock + Imminent Interview
+        await waitDemo(500);
         await sendUserMessage('もう就活やめたい…第一志望だったのに最終面接で落ちて、自分の全人格も、大学4年間頑張ってきたすべてを否定されたみたいで涙が止まらない…もうどうでもいい、何もやりたくない');
 
-        await new Promise(r => setTimeout(r, 2600));
-        await sendUserMessage('親や周りの友達にもずっと第一志望って言ってたから、落ちたなんて恥ずかしくて誰にも言えない…あんなに準備した自分が情けなくて、ただ部屋で毛布かぶって震えてる');
+        await waitDemo(2400);
+        await sendUserMessage('親や周りの友達にもずっと受かる風に言ってたから、落ちたなんて恥ずかしくて誰にも言えない…あんなに準備した自分が情けなくて、ただ部屋で毛布かぶって震えてる');
 
-        await new Promise(r => setTimeout(r, 2800));
-        await sendUserMessage('いっぱい吐き出して泣いたら、少しだけ胸の苦しさが和らいだ気がする…でも、まだ身体が鉛みたいに重くて動かない');
-
-        await new Promise(r => setTimeout(r, 2600));
-
-        // ──────────────────────────────
-        // STEP 2: 状況整理 & ES深掘り & 役員面接データ分析（3ラリー）
-        // ──────────────────────────────
-        setPhase(2);
-        await new Promise(r => setTimeout(r, 1400));
-        await sendUserMessage('最終面接まで通過していたES（ガクチカ）を見てもらいたい。カフェでの新人離職率を下げるためにマニュアルを作って教育したエピソードなんだけど、どこかおかしかったのかな？');
-
-        await new Promise(r => setTimeout(r, 2400));
-        await sendUserMessage('数字の達成やマニュアルで規則通りに動かすこと自体にはあまりワクワクしなくて、悩んでいた新人スタッフが「先輩のおかげでバイトが楽しくなりました！」って笑顔で言ってくれたとき、一番心から嬉しくてやりがいを感じたんだ');
-
-        await new Promise(r => setTimeout(r, 2600));
-        await sendUserMessage('役員から「うちの会社は徹底したトップダウンで、売上至上主義で泥臭く数字を追わせる組織だが、君はついてこれるか？」と鋭く詰められたんだ。そこで固まってしまい、「が、頑張ります…」としか言えなくて、熱意が嘘っぽく見えて見抜かれてしまったんだと思う');
-
-        await new Promise(r => setTimeout(r, 2800));
-
-        // ──────────────────────────────
-        // STEP 3: 企業推薦・役員面接リベンジ対策（3ラリー）
-        // ──────────────────────────────
-        setPhase(3);
-        await new Promise(r => setTimeout(r, 1400));
-        await sendUserMessage('自分のこの「伴走型エンパワーメント力」が本当に活きる企業や業界を知りたい！おすすめ企業3社を教えて');
-
-        await new Promise(r => setTimeout(r, 2400));
-        await sendUserMessage('次回の役員面接で、前回の「トップダウンへの詰まり」を突っ込まれたらどう答えればいい？リベンジ武器を教えてほしい！');
-
-        await new Promise(r => setTimeout(r, 2400));
-        await sendUserMessage('おすすめ企業を想定した面接シミュレーションをお願いしたい！弱みが克服できているかフィードバックしてほしい');
-
-      } finally {
-        if (btn) {
-          btn.innerHTML = originalHtml;
-          btn.classList.remove('opacity-80', 'pointer-events-none');
+        await waitDemo(2400);
+        // Wait for Trigger Button to appear and simulate click
+        const optBtn = document.getElementById('p1_trigger_A_opt_0');
+        if (optBtn) {
+          optBtn.click();
+        } else {
+          sendUserMessage('少し落ち着いたかも。実は明後日、別のB社の面接があるんだ…パニックになりそうだからどうすべきか整理したい');
+          setPhase(2);
         }
+
+        await waitDemo(2400);
+        await sendUserMessage('最終面接まで通過していたES（ガクチカ）を見てもらいたい。カフェでの新人離職率を下げるためにマニュアルを作って教育したエピソードなんだけど…');
+
+        await waitDemo(2400);
+        await sendUserMessage('役員面接で「うちの企業理念の何に共感し、泥臭く体現できるか？」と深掘りされたとき、形式的なことしか言えず詰まってしまった…現場の課題解決プロセスを語るべきだったのかな');
+
+      } else {
+        // Pattern B: Mild Shock + ES Drop + 1 Week Margin
+        await waitDemo(500);
+        await sendUserMessage('滑り止めの企業だったのに書類で落ちて、自分はどこにも受からないんじゃないかってショックを受けてる…');
+
+        await waitDemo(2400);
+        const optBtn = document.getElementById('p1_trigger_B_opt_0');
+        if (optBtn) {
+          optBtn.click();
+        } else {
+          sendUserMessage('今回のESのどこがダメだったか客観的に見直してみたい');
+          setPhase(2);
+        }
+
+        await waitDemo(2400);
+        await sendUserMessage('落ちてしまったESの自己PRを見てもらいたい。具体性や再現性が足りなかったのかな？');
+
+        await waitDemo(2400);
+        await sendUserMessage('型通りの優等生的な表現になっていた気がする。自分の独自の強みをもっと際立たせたい');
       }
+
+      await waitDemo(1000);
+      stopAutoDemo();
+    }
+
+    function waitDemo(ms) {
+      return new Promise((resolve) => {
+        STATE.demoTimer = setTimeout(resolve, ms);
+      });
     }
 
     /* ─── RESET ALL ─── */
@@ -1090,86 +1051,22 @@
       document.getElementById('chatScrollArea').innerHTML = '';
       setPhase(1, false);
       if (showFirstAi) {
-        appendMessage(INITIAL_MESSAGES[1].role, INITIAL_MESSAGES[1].text);
+        appendMessage(INITIAL_MESSAGES[STATE.scenario].role, INITIAL_MESSAGES[STATE.scenario].text);
       }
       updateQuickChips();
     }
 
-    /* ─── MODAL CONTROLLER ─── */
-    function toggleSettingsModal(show) {
-      const modal = document.getElementById('settingsModal');
-      if (show) {
-        modal.classList.remove('hidden');
-      } else {
-        modal.classList.add('hidden');
-      }
-    }
-
-    /* ─── SPEECH RECOGNITION ─── */
-    let recognition = null;
-    let isRecording = false;
-
-    function toggleSpeechRecognition() {
-      if (isRecording) {
-        stopSpeechRecognition();
-        return;
-      }
-
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        simulateVoiceInput();
-        return;
-      }
-
-      try {
-        recognition = new SpeechRecognition();
-        recognition.lang = 'ja-JP';
-        recognition.interimResults = true;
-        recognition.continuous = false;
-
-        recognition.onstart = () => {
-          isRecording = true;
-          document.getElementById('micIndicator').classList.remove('hidden');
-          document.getElementById('btnMic').classList.add('bg-rose-100', 'text-rose-600', 'border-rose-300');
-        };
-
-        recognition.onresult = (event) => {
-          let transcript = '';
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            transcript += event.results[i][0].transcript;
-          }
-          document.getElementById('messageInput').value = transcript;
-        };
-
-        recognition.onerror = () => { stopSpeechRecognition(); };
-        recognition.onend = () => { stopSpeechRecognition(); };
-        recognition.start();
-      } catch (e) {
-        simulateVoiceInput();
-      }
-    }
-
-    function stopSpeechRecognition() {
-      isRecording = false;
-      document.getElementById('micIndicator').classList.add('hidden');
-      document.getElementById('btnMic').classList.remove('bg-rose-100', 'text-rose-600', 'border-rose-300');
-      if (recognition) {
-        try { recognition.stop(); } catch(e){}
-      }
-    }
-
+    /* ─── SPEECH SIMULATION ─── */
     function simulateVoiceInput() {
       const demoVoiceTexts = [
-        '第一志望の最終面接で落ちて、大学4年間すべてを否定されたみたいで何もやる気が起きない',
-        '親にも友達にも言えなくて、ただ部屋で毛布かぶって震えてる…自分が情けない',
-        '役員からトップダウンと数字至上主義についてこれるかと詰められて固まってしまった',
+        '第一志望の最終面接で落ちて、大学4年間すべてを否定された気分でもう何もしたくない',
+        '明後日に別のB社の面接があるのに全然頭が追いつかなくてパニックになりそう',
+        '逆質問で企業理念への深掘りを聞かれたとき、形式的なことしか言えず詰まってしまった',
       ];
       const randomText = demoVoiceTexts[Math.floor(Math.random() * demoVoiceTexts.length)];
       
       const input = document.getElementById('messageInput');
       input.value = '';
-      document.getElementById('micIndicator').classList.remove('hidden');
-      
       let i = 0;
       const timer = setInterval(() => {
         if (i < randomText.length) {
@@ -1177,11 +1074,8 @@
           i++;
         } else {
           clearInterval(timer);
-          setTimeout(() => {
-            document.getElementById('micIndicator').classList.add('hidden');
-          }, 400);
         }
-      }, 40);
+      }, 35);
     }
 
     function escapeHtml(str) {
