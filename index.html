@@ -168,7 +168,7 @@
       <div class="mb-2 p-1 bg-slate-100/90 rounded-xl flex items-center gap-1 border border-slate-200/60">
         <button id="btnScenarioA" onclick="switchScenario('A')" class="flex-1 py-1 px-2 rounded-lg text-[10.5px] font-bold transition-all text-center flex items-center justify-center space-x-1 bg-white text-orange-700 shadow-xs border border-orange-200">
           <span>🚨 パターンA: 第一志望・最終落ち</span>
-          <span class="text-[9px] font-normal text-rose-600 hidden sm:inline">(直近面接あり)</span>
+          <span class="text-[9px] font-normal text-rose-600 hidden sm:inline">(持ち駒ゼロ)</span>
         </button>
         <button id="btnScenarioB" onclick="switchScenario('B')" class="flex-1 py-1 px-2 rounded-lg text-[10.5px] font-bold transition-all text-center flex items-center justify-center space-x-1 text-slate-600 hover:text-slate-800">
           <span>☕ パターンB: 滑り止め・ES落ち</span>
@@ -268,7 +268,7 @@
      * STATE MANAGEMENT
      * ─────────────────────────────────────────────────────────────────────── */
     const STATE = {
-      scenario: 'A', // 'A': 重度（第一志望最終落ち・直近他社あり） | 'B': 軽度（滑り止めES落ち・余裕あり）
+      scenario: 'A', // 'A': 重度（第一志望最終落ち・持ち駒ゼロ） | 'B': 軽度（滑り止めES落ち・余裕あり）
       phase: 1,      // 1: 感情受容, 2: 状況整理, 3: 再行動支援
       history: [],
       turnCountInPhase: 0,
@@ -304,7 +304,7 @@
         ],
         phase3: [
           { label: '🧭 構造化メモと企業推薦フィルターを見る', text: '今回の失敗を構造化したメモと、自動生成された企業検索フィルターを教えて！' },
-          { label: '🚀 モジュール3：再行動・個別伴走メニューを見る', text: '明後日のB社面接に向けた具体的な想定質問リストと、おすすめ求人メニューを確認したい！' },
+          { label: '🚀 モジュール3：再行動・個別伴走メニューを見る', text: '持ち駒がゼロだから、次に受けるべき企業の推薦リストと面接シミュレーションを確認したい！' },
         ]
       },
       B: {
@@ -472,7 +472,7 @@
       if (announce) {
         if (newPhase === 2) {
           if (STATE.scenario === 'A') {
-            appendMessage('ai', '気持ちを教えてくれてありがとう。「明後日に別のB社の面接がある」んだね。\nショックの真っ只中に次の面接が重なっている今は、まさに【緊急タスク重複のトリアージ】が必要な局面だよ。\n\n今日は落ち込みすぎず、明後日のB社に向けて「今回の最終面接で何が問われ、どこで詰まってしまったのか」を最小限の負荷でサクッと整理しよう！');
+            appendMessage('ai', '気持ちを教えてくれてありがとう。今は他に選考予定もなくて「持ち駒ゼロ」の状態なんだね。\n何もかもが止まってしまったように感じるかもしれないけれど、だからこそ焦らず、まずは【今回の最終面接で何が起きたのか】をゆっくり一緒に振り返ろう。\n\n整理できたら、あなたの強みを活かせる新しい企業を一緒に探していこうね。');
           } else {
             appendMessage('ai', '気持ちを吐き出してくれてありがとう。次の予定まで1週間あるから、落ち着いてじっくり見直せるね。\n\nここからは【② 状況整理・ES分析】に入ろう。落ちたESのエピソードを一緒に振り返って、どこを改善できるか見ていこう！');
           }
@@ -682,7 +682,7 @@
             appendMessage('ai', '誰にも言えなくて、たった一人で毛布にくるまって震えていたんだね……。その孤独と悔しさ、痛いほどわかるよ。\n少しだけ深呼吸してみようか。今の心の状態に合わせて、これからどう過ごすか一緒に選べるよ。');
             setTimeout(() => {
               renderPhase1TransitionTrigger('p1_trigger_A', [
-                { label: '⚡ 少し落ち着いたかも。実は明後日、別のB社の面接がある…', text: '少し落ち着いたかも。実は明後日、別のB社の面接があるんだ…パニックになりそうだからどうすべきか整理したい', isPrimary: true, action: 'triage_B' },
+                { label: '💭 少し落ち着いたかも…何がダメだったのか冷静に振り返りたい', text: '少し落ち着いたかも。他に持ち駒もないし、何がダメだったのか冷静に振り返って、次どうすればいいか整理したい', isPrimary: true, action: 'review_failure' },
                 { label: '🛌 今日はもう何もしたくないから泥のように休みたい', text: '今日はもう何もしたくないから泥のように休むよ', isPrimary: false, action: 'rest' }
               ], (chosen) => {
                 sendUserMessage(chosen.text);
@@ -732,8 +732,8 @@
       }
 
       if (STATE.phase === 2) {
-        if (userText.includes('明後日') || userText.includes('B社')) {
-          return '【緊急トリアージ判定：直近リカバリー優先】\n明後日にB社の一次面接があるんだね！ショックが残る中で本当にきついタイミングだけど、よく話してくれたね。\n\n第一志望の落ち込みを引きずったまま臨むのは危険だから、まずは今回の第一志望の役員面接で「何が問われ、どこで手こずってしまったのか」を短時間で客観的に整理しよう！';
+        if (userText.includes('持ち駒') || userText.includes('冷静に') || userText.includes('振り返')) {
+          return '【状況整理モード：ゼロからのリスタート】\n他に選考予定がない「持ち駒ゼロ」の状態なんだね。先が見えなくて不安だと思うけど、よく話してくれたね。\n\n逆に言えば、今回の経験をしっかり振り返ってから次に進めるチャンスでもあるよ。まずは最終面接で「何が問われ、どこで手こずってしまったのか」をじっくり客観的に整理しよう！';
         }
         if (userText.includes('ES') || userText.includes('ガクチカ')) {
           return '最終面接まで通過していたES（ガクチカ）を教えてくれてありがとう！\n「カフェでの新人離職率を下げるマニュアル作成」というエピソード、本当に素晴らしいよ。何百人という応募者の中から役員面接の数名にまで残ったのは、あなたの主体性が本物だったからに他ならないよ。\n\nでは、あの緊迫した役員面接の場で、役員から「何を聞かれ、どこで詰まってしまったのか」を教えてくれるかな？';
@@ -869,14 +869,14 @@
             <span class="text-[9px] font-bold bg-yellow-400 text-slate-900 px-2 py-0.5 rounded-full shadow-xs">リスタート準備完了</span>
           </div>
 
-          <!-- 直近対策：明後日のB社面接対策 -->
+          <!-- 次の面接に向けた準備 -->
           <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20 space-y-2">
             <div class="flex items-center justify-between">
               <span class="font-bold text-xs text-emerald-200 flex items-center space-x-1">
-                <span>⚡</span>
-                <span>直近の最優先対策：明後日のB社一次面接</span>
+                <span>🎯</span>
+                <span>リスタート面接対策：推薦企業の想定質問</span>
               </span>
-              <span class="text-[9px] bg-rose-500 text-white font-bold px-1.5 py-0.5 rounded">緊急度：高</span>
+              <span class="text-[9px] bg-amber-500 text-slate-900 font-bold px-1.5 py-0.5 rounded">ゼロからの再起</span>
             </div>
             <div class="space-y-1 text-[11px] text-emerald-50">
               <div class="font-semibold text-yellow-200">【深掘り想定質問 ＆ 逆質問リスト（3選）】：</div>
@@ -905,10 +905,11 @@
 
           <!-- 次のアクションボタン -->
           <div class="pt-1 flex gap-2">
-            <button onclick="alert('B社面接シミュレーションモードを開始します！')" class="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-900 font-extrabold text-xs shadow-md transition active:scale-95 text-center">
-              B社面接シミュレーション開始 ➔
+            <button id="btnStartMockInterview" onclick="startMockInterview()" class="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-900 font-extrabold text-xs shadow-md transition active:scale-95 text-center flex items-center justify-center space-x-1">
+              <span>🎯</span>
+              <span>面接シミュレーション開始 ➔</span>
             </button>
-            <button onclick="alert('C社（ITソリューション）の推薦求人シートを表示します！')" class="py-2 px-3 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold text-xs border border-white/30 transition active:scale-95 text-center">
+            <button onclick="showJobDetailModal()" class="py-2 px-3 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold text-xs border border-white/30 transition active:scale-95 text-center">
               求人詳細
             </button>
           </div>
@@ -989,7 +990,7 @@
       resetAll(false);
 
       if (STATE.scenario === 'A') {
-        // Pattern A: Severe Shock + Imminent Interview
+        // Pattern A: Severe Shock + No Upcoming Interviews (持ち駒ゼロ)
         await waitDemo(500);
         await sendUserMessage('もう就活やめたい…第一志望だったのに最終面接で落ちて、自分の全人格も、大学4年間頑張ってきたすべてを否定されたみたいで涙が止まらない…もうどうでもいい、何もやりたくない');
 
@@ -1002,7 +1003,7 @@
         if (optBtn) {
           optBtn.click();
         } else {
-          sendUserMessage('少し落ち着いたかも。実は明後日、別のB社の面接があるんだ…パニックになりそうだからどうすべきか整理したい');
+          sendUserMessage('少し落ち着いたかも。他に持ち駒もないし、何がダメだったのか冷静に振り返って、次どうすればいいか整理したい');
           setPhase(2);
         }
 
@@ -1060,7 +1061,7 @@
     function simulateVoiceInput() {
       const demoVoiceTexts = [
         '第一志望の最終面接で落ちて、大学4年間すべてを否定された気分でもう何もしたくない',
-        '明後日に別のB社の面接があるのに全然頭が追いつかなくてパニックになりそう',
+        '他に持ち駒もないし何がダメだったのか冷静に振り返って次どうすればいいか整理したい',
         '逆質問で企業理念への深掘りを聞かれたとき、形式的なことしか言えず詰まってしまった',
       ];
       const randomText = demoVoiceTexts[Math.floor(Math.random() * demoVoiceTexts.length)];
@@ -1088,6 +1089,177 @@
           '"': '&quot;'
         }[tag] || tag)
       );
+    }
+    /* ───────────────────────────────────────────────────────────────────────
+     * MOCK INTERVIEW SIMULATION (inline chat)
+     * ─────────────────────────────────────────────────────────────────────── */
+    async function startMockInterview() {
+      const btn = document.getElementById('btnStartMockInterview');
+      if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = '⏳ シミュレーション中…'; }
+
+      appendMessage('ai', '【🎯 面接シミュレーション開始】\n推薦企業C社（ITソリューション・自律分散型組織）の一次面接を想定した模擬面接を始めるよ！\n\nリラックスして、本番のつもりで答えてみてね。');
+
+      await new Promise(r => setTimeout(r, 1800));
+
+      appendMessage('ai', '【👔 C社 採用担当（面接官）】\n「本日はお越しいただきありがとうございます。\n\nさっそくですが、あなたがカフェのアルバイトで新人教育マニュアルを作成した経験について伺いました。\n\n弊社は現場裁量を重視する文化ですが、あなたのその経験を、弊社のような自律分散型の組織でどのように活かせると思いますか？」');
+
+      await new Promise(r => setTimeout(r, 1200));
+
+      // Render answer choices
+      const chatArea = document.getElementById('chatScrollArea');
+      const choiceWrapper = document.createElement('div');
+      choiceWrapper.className = 'flex flex-col gap-2 my-3 animate-pop-card';
+      choiceWrapper.id = 'mockInterviewChoices';
+
+      const choices = [
+        { label: '💡 弱み反転回答（推奨）', text: '前職では「マニュアルを作って終わり」になりがちでしたが、むしろ大事なのはマニュアルを"起点"にして、現場の一人ひとりの声を聞きながら柔軟に改善し続けることだと学びました。御社のような現場裁量を重視する環境であれば、私の「現場に寄り添いながら仕組みを育てる力」をダイレクトに活かせると考えています。', isPrimary: true },
+        { label: '📋 標準回答', text: 'カフェで新人教育マニュアルを作成し、離職率を下げた経験があります。この経験を御社でも活かし、チームの成長に貢献したいと考えています。', isPrimary: false }
+      ];
+
+      choices.forEach((choice, idx) => {
+        const btn = document.createElement('button');
+        btn.className = choice.isPrimary
+          ? 'w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-slate-900 font-bold text-xs shadow-md transition active:scale-95 text-left'
+          : 'w-full py-2.5 px-4 rounded-xl bg-white/80 text-slate-700 font-bold text-xs border border-slate-200 shadow-xs transition active:scale-95 text-left';
+        btn.innerHTML = `<span class="block font-extrabold mb-1">${choice.label}</span><span class="block text-[10.5px] font-normal leading-relaxed">${choice.text.substring(0, 60)}…</span>`;
+        btn.onclick = () => {
+          choiceWrapper.remove();
+          handleMockAnswer(choice, idx);
+        };
+        choiceWrapper.appendChild(btn);
+      });
+
+      chatArea.appendChild(choiceWrapper);
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    async function handleMockAnswer(choice, idx) {
+      appendMessage('user', choice.text);
+      await new Promise(r => setTimeout(r, 1500));
+
+      if (idx === 0) {
+        // 弱み反転回答 → 高評価フィードバック
+        appendMessage('ai', '【👔 C社 採用担当（面接官）】\n「なるほど、"マニュアルを起点にして現場に寄り添い改善し続ける"という視点、非常に共感できます。\n\n弊社のカルチャーにまさにフィットする考え方ですね。ぜひ次のステップでもお話を聞かせてください。」');
+      } else {
+        // 標準回答 → 改善フィードバック
+        appendMessage('ai', '【👔 C社 採用担当（面接官）】\n「ありがとうございます。マニュアル作成の経験は素晴らしいですね。\n\nもう少し具体的に、現場でどんな壁にぶつかり、それをどう乗り越えたか聞かせていただけますか？」');
+      }
+
+      await new Promise(r => setTimeout(r, 1200));
+      renderInterviewFeedbackCard(idx);
+    }
+
+    function renderInterviewFeedbackCard(answerIdx) {
+      const chatArea = document.getElementById('chatScrollArea');
+      const card = document.createElement('div');
+      card.className = 'w-full my-3 p-4 bg-gradient-to-br from-violet-600 via-purple-700 to-indigo-900 text-white rounded-2xl shadow-xl animate-pop-card space-y-3';
+
+      const score = answerIdx === 0 ? 98 : 72;
+      const scoreColor = answerIdx === 0 ? 'text-yellow-300' : 'text-orange-300';
+      const evaluation = answerIdx === 0
+        ? `<li><strong>前回の弱点「形式的な理念回答」</strong>を見事に<span class="text-yellow-300">「現場寄り添い型の具体回答」</span>へ反転できています！</li>
+           <li>「マニュアルを"起点"にする」という<strong>独自のフレーミング</strong>が企業カルチャーとの高い親和性を示しています。</li>
+           <li>自律分散型組織での<strong>自走力</strong>を具体的にアピールできている、非常に説得力のある回答です。</li>`
+        : `<li>エピソードの提示はできていますが、<strong>「具体的な困難と乗り越え方」</strong>が不足しています。</li>
+           <li>前回の反省点である<strong>「形式的な回答」</strong>からの脱却がまだ十分ではありません。</li>
+           <li>次回は「現場の生の声に寄り添った改善プロセス」を具体的に語ると説得力が増します。</li>`;
+
+      card.innerHTML = `
+        <div class="flex items-center justify-between border-b border-purple-400/40 pb-2">
+          <div class="flex items-center space-x-1.5 font-extrabold text-xs text-yellow-200">
+            <span class="text-sm">📊</span>
+            <span>面接シミュレーション 重点フィードバック</span>
+          </div>
+          <span class="text-[9px] font-bold bg-yellow-400 text-slate-900 px-2 py-0.5 rounded-full">講評カード</span>
+        </div>
+
+        <div class="text-center py-2">
+          <div class="text-[10px] text-purple-200 font-bold">弱み克服度</div>
+          <div class="text-4xl font-black ${scoreColor}" style="text-shadow: 0 0 20px rgba(255,255,255,0.3);">${score}%</div>
+        </div>
+
+        <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20 space-y-1.5">
+          <div class="font-bold text-xs text-purple-200">【詳細評価】：</div>
+          <ul class="list-disc pl-4 space-y-1 text-[10.5px] text-purple-50 leading-relaxed">
+            ${evaluation}
+          </ul>
+        </div>
+
+        <div class="text-center text-[10px] text-purple-200 pt-1">
+          ${answerIdx === 0 ? '🎉 前回の失敗を見事にリカバリー！この調子で本番に臨もう！' : '💪 もう一度弱み反転回答にチャレンジしてみよう！'}
+        </div>
+      `;
+
+      chatArea.appendChild(card);
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    /* ───────────────────────────────────────────────────────────────────────
+     * JOB DETAIL MODAL
+     * ─────────────────────────────────────────────────────────────────────── */
+    function showJobDetailModal() {
+      // Remove existing modal if any
+      const existing = document.getElementById('jobDetailModal');
+      if (existing) existing.remove();
+
+      const modal = document.createElement('div');
+      modal.id = 'jobDetailModal';
+      modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4';
+      modal.style.background = 'rgba(0,0,0,0.6)';
+      modal.style.backdropFilter = 'blur(4px)';
+      modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full max-h-[80vh] overflow-y-auto p-5 space-y-4 animate-pop-card">
+          <div class="flex items-center justify-between">
+            <h3 class="font-extrabold text-base text-slate-800 flex items-center space-x-2">
+              <span>🏢</span>
+              <span>C社 求人詳細</span>
+            </h3>
+            <button onclick="document.getElementById('jobDetailModal').remove()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 text-sm font-bold transition">✕</button>
+          </div>
+
+          <div class="space-y-3 text-sm text-slate-700">
+            <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+              <div class="font-bold text-emerald-800 text-xs mb-1">企業名</div>
+              <div class="font-semibold">C社（ITソリューション・自律分散型組織）</div>
+            </div>
+
+            <div class="p-3 bg-blue-50 rounded-xl border border-blue-200">
+              <div class="font-bold text-blue-800 text-xs mb-1">マッチ度</div>
+              <div class="flex items-center space-x-2">
+                <div class="text-2xl font-black text-blue-600">92%</div>
+                <div class="text-xs text-blue-600">あなたの強みと高い親和性</div>
+              </div>
+            </div>
+
+            <div class="p-3 bg-amber-50 rounded-xl border border-amber-200">
+              <div class="font-bold text-amber-800 text-xs mb-1">カルチャー</div>
+              <div class="text-xs leading-relaxed">形式的な理念共感よりも「現場での課題解決・伴走力」を最重要視。トップダウンではなく、現場裁量で自律的に動ける人材を歓迎。</div>
+            </div>
+
+            <div class="p-3 bg-purple-50 rounded-xl border border-purple-200">
+              <div class="font-bold text-purple-800 text-xs mb-1">なぜあなたに合うか</div>
+              <div class="text-xs leading-relaxed">前回の第一志望で「形式的な理念回答」が敗因でしたが、C社は理念の暗唱より<strong>現場での実践力</strong>を見る企業です。あなたのカフェでの教育改善経験がそのまま最大の武器になります。</div>
+            </div>
+
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <div class="font-bold text-slate-700 text-xs mb-1">選考スケジュール</div>
+              <div class="text-xs leading-relaxed">
+                <div>📄 ES締切：来週金曜日</div>
+                <div>🎤 一次面接：ES通過後1週間以内</div>
+              </div>
+            </div>
+          </div>
+
+          <button onclick="document.getElementById('jobDetailModal').remove()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-xs shadow-md transition active:scale-95">
+            閉じる
+          </button>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+      });
     }
   </script>
 </body>
