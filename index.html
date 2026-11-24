@@ -104,6 +104,12 @@
       border-color: #c2410c !important;
       transition: all 0.25s ease-out;
     }
+
+    /* Shimmer effect on active highlight */
+    .evidence-tag {
+      background: linear-gradient(90deg, #fef3c7 0%, #ffedd5 50%, #fef3c7 100%);
+      background-size: 200% 100%;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-800 antialiased min-h-screen flex items-center justify-center p-0 sm:p-2 select-none">
@@ -168,7 +174,7 @@
       <div class="mb-2 p-1 bg-slate-100/90 rounded-xl flex items-center gap-1 border border-slate-200/60">
         <button id="btnScenarioA" onclick="switchScenario('A')" class="flex-1 py-1 px-2 rounded-lg text-[10.5px] font-bold transition-all text-center flex items-center justify-center space-x-1 bg-white text-orange-700 shadow-xs border border-orange-200">
           <span>🚨 パターンA: 第一志望・最終落ち</span>
-          <span class="text-[9px] font-normal text-rose-600 hidden sm:inline">(持ち駒ゼロ)</span>
+          <span class="text-[9px] font-normal text-rose-600 hidden sm:inline">(明後日B社面接)</span>
         </button>
         <button id="btnScenarioB" onclick="switchScenario('B')" class="flex-1 py-1 px-2 rounded-lg text-[10.5px] font-bold transition-all text-center flex items-center justify-center space-x-1 text-slate-600 hover:text-slate-800">
           <span>☕ パターンB: 滑り止め・ES落ち</span>
@@ -193,7 +199,7 @@
             <span id="tabBadge-2" class="w-3.5 h-3.5 rounded-full bg-slate-300 text-slate-600 flex items-center justify-center text-[9px]">2</span>
             <span>状況整理</span>
           </div>
-          <span class="text-[9px] text-slate-400 font-normal">ES深掘・弱点分析</span>
+          <span class="text-[9px] text-slate-400 font-normal">直近トリアージ・敗因</span>
         </button>
 
         <!-- Step 3 -->
@@ -202,8 +208,17 @@
             <span id="tabBadge-3" class="w-3.5 h-3.5 rounded-full bg-slate-300 text-slate-600 flex items-center justify-center text-[9px]">3</span>
             <span>再行動支援</span>
           </div>
-          <span class="text-[9px] text-slate-400 font-normal">企業推薦・伴走</span>
+          <span class="text-[9px] text-slate-400 font-normal">直近対策・求人推薦</span>
         </button>
+      </div>
+
+      <!-- Rest Mode Banner (Hidden by default, shown during rest landing) -->
+      <div id="restModeBanner" class="hidden mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded-xl text-center">
+        <div class="flex items-center justify-center space-x-1 text-emerald-800 text-[11px] font-bold">
+          <span>🌿</span>
+          <span>休養モード適用中（低負荷着地）</span>
+        </div>
+        <p class="text-[10px] text-emerald-700 mt-0.5">画面を閉じて体を休めよう。いつでも「リセット」でやり直せます。</p>
       </div>
     </header>
 
@@ -265,30 +280,205 @@
     };
 
     /* ───────────────────────────────────────────────────────────────────────
+     * 3. 宣言的会話ステップデータ定義
+     * ─────────────────────────────────────────────────────────────────────── */
+    
+    // ▼ ここにステップを追加すると、パターンAの会話を増やせます
+    const patternASteps = [
+      {
+        id: "a-01",
+        phase: 1,
+        sender: "ai",
+        badge: { text: "① 感情受容：否定せず受け止める", className: "bg-orange-100 text-orange-700 border border-orange-200" },
+        text: "お疲れさまでした……。\nずっと心血を注ぎ、何ヶ月も準備を重ねてきた【第一志望】の企業。\nその【最終面接（役員面接）】まで死力を尽くして進んだあとの、不採用（お祈り）通知……。\n\nメールを開いた瞬間、心臓を強くえぐられたような衝撃と、目の前が真っ暗になる絶望感に襲われたよね。\n\n今は前なんて1ミリも向かなくていいし、反省なんて絶対にしないで。\n部屋のカーテンを閉め切って、ベッドから起き上がれなくなっているその悔しさ、悲しさ、そのままここに吐き出してね。私は最後まであなたの味方だからね。",
+        delay: 1000
+      },
+      {
+        id: "a-02",
+        phase: 1,
+        sender: "user",
+        text: "もう就活やめたい…第一志望だったのに最終面接で落ちて、自分の全人格も、大学4年間頑張ってきたすべてを否定されたみたいで涙が止まらない…もうどうでもいい、何もやりたくない",
+        delay: 2000
+      },
+      {
+        id: "a-03",
+        phase: 1,
+        sender: "ai",
+        badge: { text: "🧡 メンタルケア：深い自責と絶望感を受容", className: "bg-rose-100 text-rose-700 border border-rose-200" },
+        text: "【絶対にあなたが悪いんじゃないよ】\n「4年間のすべてを否定された」「もうどうでもいい、何もやりたくない」……そう思ってしまうの、本当に無理もないよ。\n\n高校を卒業してからの大学4年間、サークルもバイトも勉強も、全部この第一志望に入りたい一心で積み重ねてきたんだもんね。\n\nそれがたった1通のお祈りメールで突き返されたら、これまでの人生や自分の存在そのものを否定されたように感じるのが当たり前だよ。\n今は何もやりたくなくていい。部屋に引きこもっていていい。その絶望を、無理にポジティブに変えようとしなくていいんだよ。",
+        delay: 2400
+      },
+      {
+        id: "a-04",
+        phase: 1,
+        sender: "user",
+        text: "親や周りの友達にもずっと受かる風に言ってたから、落ちたなんて恥ずかしくて誰にも言えない…あんなに準備した自分が情けなくて、ただ部屋で毛布かぶって震えてる",
+        delay: 2200
+      },
+      {
+        id: "a-05",
+        phase: 1,
+        sender: "ai",
+        badge: { text: "🍵 ペース確認（ワンクッション）", className: "bg-amber-100 text-amber-800 border border-amber-200" },
+        text: "誰にも言えなくて、たった一人で毛布にくるまって震えていたんだね……。その孤独と悔しさ、痛いほどわかるよ。\n\n明後日にはB社の面接も控えているけれど、今はまだ心臓がバクバクして気持ちが追いつかないよね。\n\n急かすつもりは一切ないよ。まだ気持ちが追いついていないなら、もう少しこのまま受け止めるよ。もしほんの少しだけ整理できそうなら、明後日のB社に向けて無理のない範囲で一緒に見ていこうか？\nあなたのペースで選んでね。",
+        delay: 2400,
+        choices: [
+          {
+            label: "🧭 少し吐き出せたから、明後日のB社に向けて整理したい",
+            text: "少しだけ気持ちを吐き出せたかも。明後日にB社の面接もあるから、何がダメだったのか無理のない範囲で整理したい",
+            action: "continue",
+            nextStepId: "a-06"
+          },
+          {
+            label: "🛌 今日はもう何もしたくないから泥のように休みたい",
+            text: "今日はもう何もしたくないから、画面を閉じて泥のように休むよ…",
+            action: "休養",
+            nextStepId: "a-rest"
+          }
+        ]
+      },
+      // 休養・低負荷着地ステップ
+      {
+        id: "a-rest",
+        phase: 1,
+        sender: "ai",
+        badge: { text: "🌿 休養モード：低負荷着地", className: "bg-emerald-100 text-emerald-800 border border-emerald-200" },
+        text: "無理しないでね。今日は画面を閉じて、少しでも体を休めよう。\n今はエネルギーを充電することが最優先だよ。明日のことやB社の面接も、休んでからで大丈夫。\n\nまた動きたくなったらいつでも話しかけてね。いつでも待っているよ。",
+        delay: 1500,
+        isRestLanding: true
+      },
+      // Phase 2：状況整理・トリアージ
+      {
+        id: "a-06",
+        phase: 2,
+        sender: "ai",
+        badge: { text: "⚡ 直近タスク・緊急トリアージ", className: "bg-blue-100 text-blue-700 border border-blue-200" },
+        text: "その勇気、本当にすごいよ。明後日にB社面接がある状況だからこそ、焦ってパニックにならないよう【直近タスクの緊急トリアージ】をしよう。\n\nまずは今回の第一志望の選考で使っていたES（ガクチカ）や、役員面接の様子を少しだけ振り返ってみよう。\nどんな内容で挑んでいたのかな？",
+        delay: 2200
+      },
+      {
+        id: "a-07",
+        phase: 2,
+        sender: "user",
+        text: "最終面接まで通過していたES（ガクチカ）を見てもらいたい。カフェでの新人離職率を下げるためにマニュアルを作って教育したエピソードなんだけど、どこかおかしかったのかな？",
+        delay: 2200
+      },
+      {
+        id: "a-08",
+        phase: 2,
+        sender: "ai",
+        text: "「カフェでの新人離職率を下げるマニュアル作成と教育」、これは何百人もの応募者の中から役員面接まで残った素晴らしい強みだよ！あなたの主体性と人を巻き込む行動力は本物だね。\n\nでは、あの緊迫した役員面接の場で、役員から「何を聞かれ、どこで詰まってしまったのか」を教えてくれるかな？",
+        delay: 2200
+      },
+      {
+        id: "a-09",
+        phase: 2,
+        sender: "user",
+        text: "役員面接で「うちの企業理念の何に共感し、泥臭く体現できるか？」と深掘りされたとき、形式的なことしか言えず詰まってしまった…現場の課題解決プロセスを語るべきだったのかな",
+        delay: 2200
+      },
+      // Phase 3：再行動支援（失敗構造化メモ ＆ モジュール3カード）
+      {
+        id: "a-10",
+        phase: 3,
+        sender: "ai",
+        badge: { text: "💎 失敗の構造化完了", className: "bg-emerald-100 text-emerald-700 border border-emerald-200" },
+        text: "素晴らしい自己洞察だよ！詰まった理由は「あなたの熱意不足」ではなく、「形式的な理念共感にとどまり、最大の武器である現場の泥臭いプロセスを接続できなかったこと」にあるとハッキリしたね。\n\nあなたの発言に基づいて、【失敗構造化メモ】と【モジュール3：明後日のB社対策＆個別推薦求人】をリアルタイム生成したよ！",
+        delay: 2000,
+        card: {
+          type: "patternA_results"
+        }
+      }
+    ];
+
+    // ▼ パターンB（滑り止め・ES落ち、1週間余裕）の会話ステップ
+    const patternBSteps = [
+      {
+        id: "b-01",
+        phase: 1,
+        sender: "ai",
+        badge: { text: "① 感情受容：ショックの受け止め", className: "bg-blue-100 text-blue-700 border border-blue-200" },
+        text: "お疲れさまでした。\n持ち駒として受けた企業のES（書類選考）での不採用通知……。\n「滑り止めのつもりだったのに落ちるなんて…」と、プライドが傷ついたり、今後の就活への漠然とした不安が湧いてくるよね。\n\n次の企業の選考予定まではまだ1週間ほど日数があるよ。\nまずは焦らずに、いま感じているモヤモヤやショックをここに吐き出して、気持ちを整えていこう。",
+        delay: 1000
+      },
+      {
+        id: "b-02",
+        phase: 1,
+        sender: "user",
+        text: "滑り止めの企業だったのに書類で落ちて、自分はどこにも受からないんじゃないかってショックを受けてる…",
+        delay: 2000
+      },
+      {
+        id: "b-03",
+        phase: 1,
+        sender: "ai",
+        badge: { text: "🍵 ペース確認・ワンクッション", className: "bg-amber-100 text-amber-800 border border-amber-200" },
+        text: "滑り止めと思っていた企業だからこそ、「自分はどこにも受からないんじゃないか」って余計に自信を削られてしまうよね……。\nでもね、書類選考の不採用はあなたの能力不足ではなく、単にESの「書き方のフォーカス」が少し企業とズレていただけなんだよ。\n\n次の選考までまだ1週間日数もあるし、焦らなくて大丈夫だよ。どうしたいか選んでね。",
+        delay: 2200,
+        choices: [
+          {
+            label: "📄 今回のESのどこがダメだったか客観的に見直したい",
+            text: "今回のESのどこがダメだったか客観的に見直してみたい",
+            action: "continue",
+            nextStepId: "b-04"
+          },
+          {
+            label: "☕ 今日はとりあえず息抜きして明日からやる（休養）",
+            text: "今日はとりあえず息抜きして、明日から切り替えて頑張るよ",
+            action: "休養",
+            nextStepId: "b-rest"
+          }
+        ]
+      },
+      {
+        id: "b-rest",
+        phase: 1,
+        sender: "ai",
+        badge: { text: "🌿 休養モード：低負荷着地", className: "bg-emerald-100 text-emerald-800 border border-emerald-200" },
+        text: "良い判断だよ！まだ1週間余裕があるから、今日は美味しいものでも食べてゆっくりリフレッシュしよう。\n動きたくなったらまたいつでも声かけてね。",
+        delay: 1500,
+        isRestLanding: true
+      },
+      {
+        id: "b-04",
+        phase: 2,
+        sender: "ai",
+        badge: { text: "② 状況整理：ES弱点分析", className: "bg-blue-100 text-blue-700 border border-blue-200" },
+        text: "前向きに向き合えていて素晴らしいよ！1週間の余裕を最大限活かそう。\n落ちてしまったESの自己PRやガクチカで、気になっている点はあるかな？",
+        delay: 2000
+      },
+      {
+        id: "b-05",
+        phase: 2,
+        sender: "user",
+        text: "落ちてしまったESの自己PRを見てもらいたい。具体性や再現性が足りず、型通りの優等生的な表現になっていた気がする…自分の強みをもっと際立たせたい",
+        delay: 2200
+      },
+      {
+        id: "b-06",
+        phase: 3,
+        sender: "ai",
+        badge: { text: "③ 再行動支援：ESリベンジ", className: "bg-emerald-100 text-emerald-700 border border-emerald-200" },
+        text: "原因がすごくクリアになったね！「型通りの優等生表現」から「あなた独自の泥臭い課題解決プロセス」へブラッシュアップするための改善チェックリストを作成したよ！",
+        delay: 2000,
+        card: {
+          type: "patternB_results"
+        }
+      }
+    ];
+
+    /* ───────────────────────────────────────────────────────────────────────
      * STATE MANAGEMENT
      * ─────────────────────────────────────────────────────────────────────── */
     const STATE = {
-      scenario: 'A', // 'A': 重度（第一志望最終落ち・持ち駒ゼロ） | 'B': 軽度（滑り止めES落ち・余裕あり）
+      scenario: 'A', // 'A' | 'B'
       phase: 1,      // 1: 感情受容, 2: 状況整理, 3: 再行動支援
       history: [],
-      turnCountInPhase: 0,
       isDemoPlaying: false,
       demoTimer: null,
       isWaitingAi: false,
-    };
-
-    /* ─── INITIAL WELCOME MESSAGES PER SCENARIO ─── */
-    const INITIAL_MESSAGES = {
-      A: {
-        role: 'ai',
-        text: 'お疲れさまでした……。\nずっと心血を注ぎ、何ヶ月も準備を重ねてきた【第一志望】の企業。\nその【最終面接（役員面接）】まで死力を尽くして進んだあとの、不採用（お祈り）通知……。\n\nメールを開いた瞬間、心臓を強くえぐられたような衝撃と、目の前が真っ暗になる絶望感に襲われたよね。\n\n今は前なんて1ミリも向かなくていいし、反省なんて絶対にしないで。\n部屋のカーテンを閉め切って、ベッドから起き上がれなくなっているその悔しさ、悲しさ、そのままここに吐き出してね。私は最後まであなたの味方だからね。',
-        time: getCurrentTime(),
-      },
-      B: {
-        role: 'ai',
-        text: 'お疲れさまでした。\n持ち駒として受けた企業のES（書類選考）での不採用通知……。\n「滑り止めのつもりだったのに落ちるなんて…」と、プライドが傷ついたり、今後の就活への漠然とした不安が湧いてくるよね。\n\n次の企業の選考予定まではまだ1週間ほど日数があるよ。\nまずは焦らずに、いま感じているモヤモヤやショックをここに吐き出して、気持ちを整えていこう。',
-        time: getCurrentTime(),
-      }
+      isRestMode: false,
+      currentStepIndex: 0,
     };
 
     /* ─── QUICK REPLY CHIPS PER SCENARIO ─── */
@@ -300,11 +490,11 @@
         ],
         phase2: [
           { label: '📄 最終まで通ったES・ガクチカを見てもらいたい', text: '最終面接まで通過していたES（ガクチカ）を見てもらいたい。カフェでの新人離職率を下げるためにマニュアルを作って教育したエピソードなんだけど、どこかおかしかったのかな？' },
-          { label: '🏢 役員面接で逆質問と理念の深掘りで詰まった', text: '役員面接で「うちの企業理念の何に共感し、泥臭く体現できるか？」と深掘りされたとき、形式的なことしか言えず詰まってしまった…現場の課題解決プロセスを語るべきだったのかな' },
+          { label: '🏢 役員面接で理念の深掘りで詰まった', text: '役員面接で「うちの企業理念の何に共感し、泥臭く体現できるか？」と深掘りされたとき、形式的なことしか言えず詰まってしまった…現場の課題解決プロセスを語るべきだったのかな' },
         ],
         phase3: [
-          { label: '🧭 構造化メモと企業推薦フィルターを見る', text: '今回の失敗を構造化したメモと、自動生成された企業検索フィルターを教えて！' },
-          { label: '🚀 モジュール3：再行動・個別伴走メニューを見る', text: '持ち駒がゼロだから、次に受けるべき企業の推薦リストと面接シミュレーションを確認したい！' },
+          { label: '🧭 失敗構造化メモ＆根拠を見る', text: '今回の失敗を構造化したメモと、自動生成された企業検索フィルターを教えて！' },
+          { label: '🚀 明後日のB社面接対策とC社推薦を確認する', text: '明後日のB社に向けた想定問答と、推薦求人C社（マッチ度92%）の詳細を確認したい！' },
         ]
       },
       B: {
@@ -317,7 +507,7 @@
           { label: '💡 自分の強みをもっと尖らせるには？', text: '型通りの優等生的な表現になっていた気がする。自分の独自の強みをもっと際立たせたい' },
         ],
         phase3: [
-          { label: '📊 ES改善チェックリストと推薦求人を見る', text: 'ブラッシュアップされた自己分析と、来週に向けて受けるべきおすすめ求人を教えて！' },
+          { label: '📊 ES改善チェックリストを見る', text: 'ブラッシュアップされた自己分析と、来週に向けたES改善チェックリストを教えて！' },
         ]
       }
     };
@@ -340,8 +530,8 @@
       },
       2: {
         name: '状況整理',
-        badge: '② 状況整理・深掘りカウンセリング',
-        subtitle: 'ES深掘り・問答分析・自己分析更新',
+        badge: '② 状況整理・直近トリアージ',
+        subtitle: 'ES深掘り・問答分析・弱点の因数分解',
         appBg: '#F3F6FA',
         activeTabBg: 'bg-blue-50 border-blue-300 text-blue-700 shadow-xs',
         inactiveTabBg: 'bg-slate-50 border-slate-200 text-slate-400',
@@ -355,14 +545,14 @@
       3: {
         name: '再行動支援',
         badge: '③ 再行動支援・個別伴走',
-        subtitle: '失敗の構造化・個別伴走メニュー提供',
+        subtitle: '失敗の構造化・直近対策・個別推薦',
         appBg: '#F0F9F5',
         activeTabBg: 'bg-emerald-50 border-emerald-300 text-emerald-700 shadow-xs',
         inactiveTabBg: 'bg-slate-50 border-slate-200 text-slate-400',
         badgeClass: 'bg-emerald-100 text-emerald-700',
         avatarGrad: 'from-emerald-500 to-teal-500 shadow-emerald-300/50',
         btnSendBg: 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-300',
-        inputPlaceholder: 'おすすめ企業や、次回面接対策の質問をしてみてね',
+        inputPlaceholder: 'B社対策や推薦企業について質問してみてね',
         userBubbleBg: 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-emerald-200',
         aiBubbleBg: 'bg-white text-slate-800 border border-emerald-100 shadow-xs',
       }
@@ -394,9 +584,7 @@
         });
       }
 
-      setPhase(1, false);
-      appendMessage(INITIAL_MESSAGES[STATE.scenario].role, INITIAL_MESSAGES[STATE.scenario].text);
-      updateQuickChips();
+      resetAll();
     }
 
     if (document.readyState === 'loading') {
@@ -406,10 +594,10 @@
     }
 
     /* ───────────────────────────────────────────────────────────────────────
-     * POINT 1: SCENARIO SWITCHING (PATTERN A vs PATTERN B)
+     * SCENARIO SWITCHING (PATTERN A vs PATTERN B)
      * ─────────────────────────────────────────────────────────────────────── */
     function switchScenario(scenarioKey) {
-      if (STATE.scenario === scenarioKey && !STATE.isDemoPlaying) return;
+      if (STATE.scenario === scenarioKey && !STATE.isDemoPlaying && !STATE.isRestMode) return;
       stopAutoDemo();
       STATE.scenario = scenarioKey;
 
@@ -430,9 +618,8 @@
     /* ───────────────────────────────────────────────────────────────────────
      * PHASE SWITCHING
      * ─────────────────────────────────────────────────────────────────────── */
-    function setPhase(newPhase, announce = true) {
+    function setPhase(newPhase, announce = false) {
       STATE.phase = newPhase;
-      STATE.turnCountInPhase = 0;
       const theme = THEMES[newPhase];
 
       const appRoot = document.getElementById('appRoot');
@@ -467,17 +654,15 @@
       const avatar = document.getElementById('statusAvatar');
       avatar.className = `w-8 h-8 rounded-full bg-gradient-to-tr ${theme.avatarGrad} flex items-center justify-center text-white shadow-sm shrink-0`;
 
-      document.getElementById('messageInput').placeholder = theme.inputPlaceholder;
+      if (!STATE.isRestMode) {
+        document.getElementById('messageInput').placeholder = theme.inputPlaceholder;
+      }
 
       if (announce) {
         if (newPhase === 2) {
-          if (STATE.scenario === 'A') {
-            appendMessage('ai', '気持ちを教えてくれてありがとう。今は他に選考予定もなくて「持ち駒ゼロ」の状態なんだね。\n何もかもが止まってしまったように感じるかもしれないけれど、だからこそ焦らず、まずは【今回の最終面接で何が起きたのか】をゆっくり一緒に振り返ろう。\n\n整理できたら、あなたの強みを活かせる新しい企業を一緒に探していこうね。');
-          } else {
-            appendMessage('ai', '気持ちを吐き出してくれてありがとう。次の予定まで1週間あるから、落ち着いてじっくり見直せるね。\n\nここからは【② 状況整理・ES分析】に入ろう。落ちたESのエピソードを一緒に振り返って、どこを改善できるか見ていこう！');
-          }
+          appendMessage('ai', '気持ちを教えてくれてありがとう。ここからは【② 状況整理・直近トリアージ】に入ろう。\n明後日のB社面接に向けて、まずは今回の第一志望で何が起きたのかを無理のないペースで一緒に整理しよう。');
         } else if (newPhase === 3) {
-          appendMessage('ai', '敗因の言語化と自己分析のアップデート、お見事です！\n\nここからは【③ 再行動支援・個別伴走メニュー】をお届けします。今回の反省を踏まえた「敗因構造化メモ」をリアルタイム生成したよ！');
+          appendMessage('ai', '敗因の因数分解ができたね！ここからは【③ 再行動支援】として、今回の気づきを明後日のB社面接対策と個別推薦に繋げていこう！');
         }
       }
 
@@ -485,11 +670,21 @@
     }
 
     /* ───────────────────────────────────────────────────────────────────────
-     * CHAT RENDERING
+     * CHAT RENDERING & AUTO SCROLL
      * ─────────────────────────────────────────────────────────────────────── */
     function getCurrentTime() {
       const now = new Date();
       return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    }
+
+    function scrollChatToElement(el) {
+      const chatArea = document.getElementById('chatScrollArea');
+      if (!chatArea) return;
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } else {
+        chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'smooth' });
+      }
     }
 
     function appendMessage(role, text, isHtml = false, customBadge = null) {
@@ -526,9 +721,10 @@
       }
 
       chatArea.appendChild(wrapper);
-      chatArea.scrollTop = chatArea.scrollHeight;
+      scrollChatToElement(wrapper);
 
       STATE.history.push({ role, text, time });
+      return wrapper;
     }
 
     function showTypingIndicator() {
@@ -548,7 +744,7 @@
         </div>
       `;
       chatArea.appendChild(indicator);
-      chatArea.scrollTop = chatArea.scrollHeight;
+      scrollChatToElement(indicator);
     }
 
     function removeTypingIndicator() {
@@ -560,6 +756,16 @@
     function updateQuickChips() {
       const chipBar = document.getElementById('quickReplyBar');
       chipBar.innerHTML = '';
+
+      if (STATE.isRestMode) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-800 hover:bg-emerald-100 transition active:scale-95';
+        btn.innerHTML = '🔄 最初からやり直す（リセット）';
+        btn.onclick = () => resetAll();
+        chipBar.appendChild(btn);
+        return;
+      }
 
       const currentChips = QUICK_CHIPS[STATE.scenario];
       let chips = [];
@@ -586,9 +792,45 @@
     }
 
     /* ───────────────────────────────────────────────────────────────────────
-     * USER INTERACTION & DEEP COUNSELING ENGINE
+     * 2. (1) 休養・低負荷着地モード
+     * ─────────────────────────────────────────────────────────────────────── */
+    function enterRestMode() {
+      STATE.isRestMode = true;
+      stopAutoDemo();
+
+      const banner = document.getElementById('restModeBanner');
+      if (banner) banner.classList.remove('hidden');
+
+      const messageInput = document.getElementById('messageInput');
+      messageInput.placeholder = '🌿 現在は休養モード中です。画面を閉じて体を休めてね';
+      messageInput.disabled = true;
+
+      const btnSend = document.getElementById('btnSend');
+      btnSend.disabled = true;
+
+      updateQuickChips();
+    }
+
+    function exitRestMode() {
+      STATE.isRestMode = false;
+      const banner = document.getElementById('restModeBanner');
+      if (banner) banner.classList.add('hidden');
+
+      const messageInput = document.getElementById('messageInput');
+      messageInput.disabled = false;
+      messageInput.placeholder = THEMES[STATE.phase].inputPlaceholder;
+
+      const btnSend = document.getElementById('btnSend');
+      btnSend.disabled = false;
+
+      updateQuickChips();
+    }
+
+    /* ───────────────────────────────────────────────────────────────────────
+     * USER INTERACTION
      * ─────────────────────────────────────────────────────────────────────── */
     function handleSend() {
+      if (STATE.isRestMode) return;
       const input = document.getElementById('messageInput');
       const text = input.value.trim();
       if (!text || STATE.isWaitingAi) return;
@@ -598,349 +840,353 @@
 
     async function sendUserMessage(text) {
       appendMessage('user', text);
-      STATE.turnCountInPhase++;
       STATE.isWaitingAi = true;
       showTypingIndicator();
 
-      try {
-        let reply = '';
-        let badge = null;
+      await new Promise(r => setTimeout(r, 700 + Math.random() * 300));
+      removeTypingIndicator();
 
-        // Check self-blame detection in Phase 1
-        if (STATE.phase === 1 && (text.includes('4年間') || text.includes('全人格') || text.includes('否定') || text.includes('何もやりたくない') || text.includes('どうでもいい'))) {
-          badge = { text: '🧡 メンタルケア：深い自責と絶望感を受容', className: 'bg-rose-100 text-rose-700 border border-rose-200' };
+      const steps = STATE.scenario === 'A' ? patternASteps : patternBSteps;
+      
+      // 休養判定
+      if (text.includes('泥のように休') || text.includes('息抜きして明日から')) {
+        const restStep = steps.find(s => s.id.includes('rest'));
+        if (restStep) {
+          appendMessage('ai', restStep.text, false, restStep.badge);
+          enterRestMode();
+          STATE.isWaitingAi = false;
+          return;
         }
-
-        await new Promise(r => setTimeout(r, 700 + Math.random() * 300));
-        reply = generateMockResponse(text);
-
-        removeTypingIndicator();
-        appendMessage('ai', reply, false, badge);
-
-        handlePostResponseEvents(text);
-
-      } catch (err) {
-        removeTypingIndicator();
-        console.error('Error:', err);
-        appendMessage('ai', `⚠️ 応答生成エラーが発生しました。\n\n${generateMockResponse(text)}`);
-      } finally {
-        STATE.isWaitingAi = false;
-        updateQuickChips();
       }
+
+      // Check if user text matches an existing step text
+      const matchedIdx = steps.findIndex(s => s.sender === 'user' && s.text.trim() === text.trim());
+      if (matchedIdx !== -1 && matchedIdx + 1 < steps.length) {
+        const nextAiStep = steps[matchedIdx + 1];
+        if (nextAiStep.sender === 'ai') {
+          if (nextAiStep.phase !== STATE.phase) {
+            setPhase(nextAiStep.phase, false);
+          }
+          appendMessage('ai', nextAiStep.text, false, nextAiStep.badge);
+          if (nextAiStep.choices) {
+            renderInlineChoices(nextAiStep.choices);
+          }
+          if (nextAiStep.card) {
+            renderCardByStep(nextAiStep.card);
+          }
+          STATE.isWaitingAi = false;
+          updateQuickChips();
+          return;
+        }
+      }
+
+      // Default fallback response
+      let reply = '気持ちを教えてくれてありがとう。一歩ずつ、あなたのペースで整理していこうね。';
+      let badge = null;
+
+      if (STATE.phase === 1) {
+        if (text.includes('4年間') || text.includes('否定') || text.includes('やめたい')) {
+          badge = { text: '🧡 メンタルケア：深い自責と絶望感を受容', className: 'bg-rose-100 text-rose-700 border border-rose-200' };
+          reply = '【絶対にあなたが悪いんじゃないよ】\n4年間のすべてを否定されたように感じるの、本当に無理もないよ。今は前なんて向かなくていい。その悔しさと絶望を、ここにそのまま吐き出してね。';
+        } else {
+          // ワンクッションペース確認へ促す
+          const step05 = steps.find(s => s.choices);
+          if (step05) {
+            appendMessage('ai', step05.text, false, step05.badge);
+            renderInlineChoices(step05.choices);
+            STATE.isWaitingAi = false;
+            updateQuickChips();
+            return;
+          }
+        }
+      } else if (STATE.phase === 2) {
+        if (text.includes('カフェ') || text.includes('ES') || text.includes('ガクチカ')) {
+          reply = '「カフェでの新人離職率を下げるマニュアル作成」、素晴らしいガクチカだよ！役員面接でどこに詰まってしまったと感じたか教えてくれる？';
+        } else if (text.includes('理念') || text.includes('逆質問') || text.includes('詰まった')) {
+          setPhase(3, false);
+          const lastStep = steps[steps.length - 1];
+          appendMessage('ai', lastStep.text, false, lastStep.badge);
+          renderCardByStep(lastStep.card);
+          STATE.isWaitingAi = false;
+          updateQuickChips();
+          return;
+        }
+      }
+
+      appendMessage('ai', reply, false, badge);
+      STATE.isWaitingAi = false;
+      updateQuickChips();
     }
 
-    /* ─── POINT 2: IN-CHAT TRANSITION TRIGGER CHIPS ─── */
-    function renderPhase1TransitionTrigger(containerId, options, selectedCallback) {
+    /* ─── 2. (2) インライン選択肢描画（ワンクッション） ─── */
+    function renderInlineChoices(choices) {
       const chatArea = document.getElementById('chatScrollArea');
       const triggerWrapper = document.createElement('div');
-      triggerWrapper.id = containerId;
       triggerWrapper.className = 'w-full my-2.5 p-3 bg-white/95 rounded-2xl border border-orange-200 shadow-sm animate-slide-up space-y-2';
+      triggerWrapper.id = 'inlineChoicesContainer';
       
       triggerWrapper.innerHTML = `
         <div class="flex items-center space-x-1.5 text-orange-800 font-bold text-xs">
           <span>👇</span>
-          <span>これからの過ごし方を選んでみよう（あなたのペースでOK）：</span>
+          <span>これからの過ごし方を選んでみてね（あなたのペースでOK）：</span>
         </div>
-        <div class="flex flex-col gap-1.5" id="${containerId}_options">
-        </div>
+        <div class="flex flex-col gap-1.5" id="inlineChoicesList"></div>
       `;
 
-      const optionsContainer = triggerWrapper.querySelector(`#${containerId}_options`);
+      const listContainer = triggerWrapper.querySelector('#inlineChoicesList');
 
-      options.forEach((opt, idx) => {
+      choices.forEach((choice, idx) => {
         const btn = document.createElement('button');
-        btn.id = `${containerId}_opt_${idx}`;
+        btn.id = `choice_btn_${idx}`;
+        const isContinue = choice.action === 'continue';
         btn.className = `w-full text-left p-2.5 rounded-xl border text-xs font-semibold transition-all flex items-center justify-between ${
-          opt.isPrimary 
+          isContinue
             ? 'bg-orange-50/90 border-orange-300 text-orange-900 hover:bg-orange-100'
             : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
         }`;
         btn.innerHTML = `
-          <span>${opt.label}</span>
-          <span class="text-[10px] text-orange-600 font-bold">選択 ➔</span>
+          <span>${choice.label}</span>
+          <span class="text-[10px] ${isContinue ? 'text-orange-600' : 'text-slate-400'} font-bold">選択 ➔</span>
         `;
         btn.onclick = () => {
           btn.classList.add('chip-selected-animate');
           setTimeout(() => {
             triggerWrapper.remove();
-            selectedCallback(opt);
-          }, 350);
+            handleChoiceClick(choice);
+          }, 300);
         };
-        optionsContainer.appendChild(btn);
+        listContainer.appendChild(btn);
       });
 
       chatArea.appendChild(triggerWrapper);
-      chatArea.scrollTop = chatArea.scrollHeight;
+      scrollChatToElement(triggerWrapper);
     }
 
-    /* ─── POST-RESPONSE EVENT & RICH CARDS TRIGGER ─── */
-    function handlePostResponseEvents(userText) {
-      // Phase 1 -> Show Transition Trigger Chip (Point 2)
-      if (STATE.phase === 1 && (userText.includes('親') || userText.includes('友達') || userText.includes('毛布') || STATE.turnCountInPhase >= 2)) {
+    function handleChoiceClick(choice) {
+      if (choice.action === '休養') {
+        appendMessage('user', choice.text);
         setTimeout(() => {
-          if (STATE.scenario === 'A') {
-            appendMessage('ai', '誰にも言えなくて、たった一人で毛布にくるまって震えていたんだね……。その孤独と悔しさ、痛いほどわかるよ。\n少しだけ深呼吸してみようか。今の心の状態に合わせて、これからどう過ごすか一緒に選べるよ。');
-            setTimeout(() => {
-              renderPhase1TransitionTrigger('p1_trigger_A', [
-                { label: '💭 少し落ち着いたかも…何がダメだったのか冷静に振り返りたい', text: '少し落ち着いたかも。他に持ち駒もないし、何がダメだったのか冷静に振り返って、次どうすればいいか整理したい', isPrimary: true, action: 'review_failure' },
-                { label: '🛌 今日はもう何もしたくないから泥のように休みたい', text: '今日はもう何もしたくないから泥のように休むよ', isPrimary: false, action: 'rest' }
-              ], (chosen) => {
-                sendUserMessage(chosen.text);
-                setTimeout(() => setPhase(2), 800);
-              });
-            }, 600);
-          } else {
-            appendMessage('ai', '滑り止めと思っていたからこそ、余計にショックだったよね。\nでも次の選考までまだ1週間日数もあるし、焦らなくて大丈夫だよ。どうしたいか教えてね。');
-            setTimeout(() => {
-              renderPhase1TransitionTrigger('p1_trigger_B', [
-                { label: '📄 今回のESのどこがダメだったか客観的に見直したい', text: '今回のESのどこがダメだったか客観的に見直してみたい', isPrimary: true, action: 'review_es' },
-                { label: '☕ 今日はとりあえず息抜きして明日からやる', text: '今日はとりあえず息抜きして明日から頑張るよ', isPrimary: false, action: 'rest' }
-              ], (chosen) => {
-                sendUserMessage(chosen.text);
-                setTimeout(() => setPhase(2), 800);
-              });
-            }, 600);
+          const steps = STATE.scenario === 'A' ? patternASteps : patternBSteps;
+          const restStep = steps.find(s => s.id.includes('rest'));
+          if (restStep) {
+            appendMessage('ai', restStep.text, false, restStep.badge);
           }
+          enterRestMode();
         }, 500);
-      }
-
-      // Phase 2 -> Phase 3 Structure Card Trigger (Point 3 & 4)
-      if (STATE.phase === 2 && (userText.includes('理念') || userText.includes('逆質問') || userText.includes('詰まった') || userText.includes('突っ込まれ'))) {
+      } else {
+        appendMessage('user', choice.text);
         setTimeout(() => {
-          // Transition to Phase 3 with Realtime Pop Animation
-          setPhase(3);
-          setTimeout(() => {
-            renderRealtimeStructureCard();
-            setTimeout(() => {
-              renderModule3ActionCard();
-            }, 1200);
-          }, 800);
+          setPhase(2, false);
+          const steps = STATE.scenario === 'A' ? patternASteps : patternBSteps;
+          const target = steps.find(s => s.id === choice.nextStepId) || steps.find(s => s.phase === 2 && s.sender === 'ai');
+          if (target) {
+            appendMessage('ai', target.text, false, target.badge);
+          }
+          updateQuickChips();
         }, 700);
       }
     }
 
-    /* ─── REALISTIC COUNSELING RESPONSE GENERATOR ─── */
-    function generateMockResponse(userText) {
-      if (STATE.phase === 1) {
-        if (userText.includes('4年間') || userText.includes('全人格') || userText.includes('何もやりたくない') || userText.includes('どうでもいい')) {
-          return '【絶対にあなたが悪いんじゃないよ】\n「4年間のすべてを否定された」「もうどうでもいい、何もやりたくない」……そう思ってしまうの、本当に無理もないよ。\n\n高校を卒業してからの大学4年間、サークルもバイトも勉強も、全部この「第一志望」に入りたい一心で積み重ねてきたんだもんね。\n\nそれがたった1通の冷たいお祈りメールで突き返されたら、これまでの人生や自分の存在そのものを否定されたように感じるのが当たり前だよ。\n今は何もやりたくなくていい。部屋に引きこもっていていい。その絶望を、無理にポジティブに変えようとしなくていいんだよ。';
-        }
-        if (userText.includes('滑り止め') || userText.includes('自信を失った')) {
-          return '滑り止めと思っていた企業だからこそ、「自分はどこにも受からないんじゃないか」って余計に自信を削られてしまうよね……。\nでもね、書類選考の不採用はあなたの能力不足ではなく、単にESの「書き方のフォーカス」が少し企業とズレていただけなんだよ。\n大丈夫。次の予定まで時間はあるから、焦らず立て直していこう。';
-        }
-        return 'その気持ち、教えてくれてありがとう。悔しさも絶望も、あなたが本気で挑んできた尊い証拠だよ。誰にも言えない弱音、全部ここで受け止めるからね。';
+    /* ───────────────────────────────────────────────────────────────────────
+     * 2. (4) 根拠を明示したカード描画
+     * ─────────────────────────────────────────────────────────────────────── */
+    function renderCardByStep(cardData) {
+      if (cardData.type === 'patternA_results' || cardData.type === 'analysisAndAction') {
+        renderRealtimeStructureCardPatternA();
+        setTimeout(() => {
+          renderModule3ActionCardPatternA();
+        }, 800);
+      } else if (cardData.type === 'patternB_results') {
+        renderRealtimeStructureCardPatternB();
       }
-
-      if (STATE.phase === 2) {
-        if (userText.includes('持ち駒') || userText.includes('冷静に') || userText.includes('振り返')) {
-          return '【状況整理モード：ゼロからのリスタート】\n他に選考予定がない「持ち駒ゼロ」の状態なんだね。先が見えなくて不安だと思うけど、よく話してくれたね。\n\n逆に言えば、今回の経験をしっかり振り返ってから次に進めるチャンスでもあるよ。まずは最終面接で「何が問われ、どこで手こずってしまったのか」をじっくり客観的に整理しよう！';
-        }
-        if (userText.includes('ES') || userText.includes('ガクチカ')) {
-          return '最終面接まで通過していたES（ガクチカ）を教えてくれてありがとう！\n「カフェでの新人離職率を下げるマニュアル作成」というエピソード、本当に素晴らしいよ。何百人という応募者の中から役員面接の数名にまで残ったのは、あなたの主体性が本物だったからに他ならないよ。\n\nでは、あの緊迫した役員面接の場で、役員から「何を聞かれ、どこで詰まってしまったのか」を教えてくれるかな？';
-        }
-        return '状況を教えてくれてありがとう。一歩ずつ、客観的な事実へと昇華できているよ！';
-      }
-
-      if (STATE.phase === 3) {
-        return '確実に次への武器が揃ったね！自信を持って次の一歩を踏み出そう！';
-      }
-
-      return 'うんうん、その調子で整理していこうね。';
     }
 
-    /* ───────────────────────────────────────────────────────────────────────
-     * POINT 3: REALTIME STRUCTURED SUMMARY CARD
-     * ─────────────────────────────────────────────────────────────────────── */
-    function renderRealtimeStructureCard() {
+    // パターンA：失敗構造化メモ ＆ 自己分析アップデート（根拠の明示つき）
+    function renderRealtimeStructureCardPatternA() {
       const chatArea = document.getElementById('chatScrollArea');
       const card = document.createElement('div');
       card.className = 'w-full my-3 p-4 bg-gradient-to-br from-indigo-50 via-sky-50 to-emerald-50 rounded-2xl border-2 border-indigo-200 shadow-md animate-pop-card space-y-3';
       
-      if (STATE.scenario === 'A') {
-        card.innerHTML = `
-          <div class="flex items-center justify-between border-b border-indigo-200/80 pb-2">
-            <div class="flex items-center space-x-1.5 text-indigo-900 font-bold text-xs">
-              <span class="text-sm">⚡</span>
-              <span>今回の失敗構造化メモ ＆ 自己分析アップデート</span>
-            </div>
-            <span class="text-[9px] font-extrabold bg-indigo-600 text-white px-2 py-0.5 rounded-full animate-pulse-subtle">リアルタイム自動生成</span>
+      card.innerHTML = `
+        <div class="flex items-center justify-between border-b border-indigo-200/80 pb-2">
+          <div class="flex items-center space-x-1.5 text-indigo-900 font-bold text-xs">
+            <span class="text-sm">⚡</span>
+            <span>失敗構造化メモ ＆ 自己分析アップデート</span>
           </div>
+          <span class="text-[9px] font-extrabold bg-indigo-600 text-white px-2 py-0.5 rounded-full animate-pulse-subtle">リアルタイム自動生成</span>
+        </div>
 
-          <!-- 1. 敗因構造化 -->
-          <div class="bg-white/95 p-3 rounded-xl border border-indigo-100 shadow-2xs space-y-1">
-            <div class="flex items-center space-x-1 text-rose-700 font-bold text-[11px]">
-              <span>🎯</span>
-              <span>1. 今回の敗因構造化（アンマッチの因数分解）</span>
-            </div>
-            <p class="text-[11px] text-slate-700 leading-relaxed pl-1">
-              ❌ <strong>誤った反省</strong>：「自分の熱意や人格が足りなかった」<br/>
-              ⭕ <strong>構造的な真因</strong>：<strong>「逆質問・企業理念への紐づけと深掘り対応の不足」</strong>。理念重視・トップダウン型の企業において、形式的な理念共感にとどまり、現場の具体的な課題解決プロセスを語りきれなかった。
-            </p>
+        <!-- ユーザー発言との根拠紐づけ（★要件(4)） -->
+        <div class="bg-amber-50/90 p-2.5 rounded-xl border border-amber-200 space-y-1">
+          <div class="flex items-center space-x-1 text-amber-900 font-bold text-[11px]">
+            <span>💡</span>
+            <span>あなたの会話発言からの抽出根拠：</span>
           </div>
+          <ul class="text-[10.5px] text-amber-900/90 pl-3 list-disc space-y-0.5 leading-relaxed">
+            <li><strong>発言根拠①</strong>：「カフェでの新人離職率を下げるマニュアル作成・教育経験」</li>
+            <li><strong>発言根拠②</strong>：「役員面接で企業理念の深掘り・体現プロセスに詰まった点」</li>
+          </ul>
+        </div>
 
-          <!-- 2. アップデートされた自己分析 -->
-          <div class="bg-white/95 p-3 rounded-xl border border-indigo-100 shadow-2xs space-y-1">
-            <div class="flex items-center space-x-1 text-emerald-700 font-bold text-[11px]">
-              <span>💎</span>
-              <span>2. アップデートされた自己分析（真の強み）</span>
-            </div>
-            <p class="text-[11px] text-slate-700 leading-relaxed pl-1">
-              抽象的な企業理念への盲従よりも、<strong>「現場の生々しい課題に寄り添い、具体的なプロセスを泥臭く改善して人を自走させる伴走力」</strong>こそが最大の武器になるタイプ。
-            </p>
+        <!-- 1. 敗因構造化 -->
+        <div class="bg-white/95 p-3 rounded-xl border border-indigo-100 shadow-2xs space-y-1">
+          <div class="flex items-center space-x-1 text-rose-700 font-bold text-[11px]">
+            <span>🎯</span>
+            <span>1. 今回の敗因構造化（アンマッチの因数分解）</span>
           </div>
+          <p class="text-[11px] text-slate-700 leading-relaxed pl-1">
+            ❌ <strong>誤った自己否定</strong>：「自分の全人格や熱意が足りなかった」<br/>
+            ⭕ <strong>構造的な真因</strong>：<strong>「理念重視・トップダウン型企業に対する、形式的な理念回答」</strong>。理念のお題目を語ってしまい、あなたの最大の強みである『現場の泥臭い課題解決プロセス』と結びつけられなかったこと。
+          </p>
+        </div>
 
-          <!-- 3. 検索軸・フィルターの自動更新 -->
-          <div class="bg-white/95 p-3 rounded-xl border border-indigo-100 shadow-2xs space-y-1">
-            <div class="flex items-center space-x-1 text-sky-700 font-bold text-[11px]">
-              <span>🔄</span>
-              <span>3. 検索軸・フィルターの自動更新</span>
-            </div>
-            <div class="pl-1 pt-0.5 flex flex-wrap gap-1.5 text-[10px]">
-              <span class="bg-rose-100 text-rose-800 px-2 py-0.5 rounded font-semibold line-through">理念重視・トップダウン型</span>
-              <span class="text-slate-400 font-bold">➔</span>
-              <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">現場裁量・課題解決伴走型</span>
-              <span class="bg-sky-100 text-sky-800 px-2 py-0.5 rounded font-bold">#ボトムアップ組織</span>
-              <span class="bg-teal-100 text-teal-800 px-2 py-0.5 rounded font-bold">#HRTech・自律型SaaS</span>
-            </div>
+        <!-- 2. アップデートされた自己分析 -->
+        <div class="bg-white/95 p-3 rounded-xl border border-indigo-100 shadow-2xs space-y-1">
+          <div class="flex items-center space-x-1 text-emerald-700 font-bold text-[11px]">
+            <span>💎</span>
+            <span>2. アップデートされた自己分析（真の強み）</span>
           </div>
-        `;
-      } else {
-        card.innerHTML = `
-          <div class="flex items-center justify-between border-b border-indigo-200/80 pb-2">
-            <div class="flex items-center space-x-1.5 text-indigo-900 font-bold text-xs">
-              <span class="text-sm">⚡</span>
-              <span>ES敗因構造化メモ ＆ 自己分析アップデート</span>
-            </div>
-            <span class="text-[9px] font-extrabold bg-blue-600 text-white px-2 py-0.5 rounded-full animate-pulse-subtle">リアルタイム自動生成</span>
-          </div>
+          <p class="text-[11px] text-slate-700 leading-relaxed pl-1">
+            抽象的な企業理念への盲従よりも、<strong>「現場の生々しい課題に寄り添い、具体的なプロセスを泥臭く改善して人を自走させる伴走力」</strong>こそが、カフェ経験から証明されたあなたの唯一無二の武器。
+          </p>
+        </div>
 
-          <div class="bg-white/95 p-3 rounded-xl border border-indigo-100 shadow-2xs space-y-1">
-            <div class="flex items-center space-x-1 text-rose-700 font-bold text-[11px]">
-              <span>🎯</span>
-              <span>1. 今回の敗因構造化</span>
-            </div>
-            <p class="text-[11px] text-slate-700 leading-relaxed pl-1">
-              エピソードの具体性不足。誰でも書ける一般的な自己PRにとどまり、独自の「課題解決の泥臭いプロセス」が伝わっていなかった。
-            </p>
+        <!-- 3. 検索軸・フィルターの自動更新 -->
+        <div class="bg-white/95 p-3 rounded-xl border border-indigo-100 shadow-2xs space-y-1">
+          <div class="flex items-center space-x-1 text-sky-700 font-bold text-[11px]">
+            <span>🔄</span>
+            <span>3. 検索軸・フィルターの自動更新</span>
           </div>
-
-          <div class="bg-white/95 p-3 rounded-xl border border-indigo-100 shadow-2xs space-y-1">
-            <div class="flex items-center space-x-1 text-emerald-700 font-bold text-[11px]">
-              <span>💎</span>
-              <span>2. アップデートされた自己分析</span>
-            </div>
-            <p class="text-[11px] text-slate-700 leading-relaxed pl-1">
-              「協調性」という抽象語を排し、<strong>「チームの摩擦を解消する具体的なファシリテーション力」</strong>として言語化を強化。
-            </p>
+          <div class="pl-1 pt-0.5 flex flex-wrap gap-1.5 text-[10px]">
+            <span class="bg-rose-100 text-rose-800 px-2 py-0.5 rounded font-semibold line-through">理念重視・トップダウン型</span>
+            <span class="text-slate-400 font-bold">➔</span>
+            <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">現場裁量・課題解決伴走型</span>
+            <span class="bg-sky-100 text-sky-800 px-2 py-0.5 rounded font-bold">#ボトムアップ組織</span>
+            <span class="bg-teal-100 text-teal-800 px-2 py-0.5 rounded font-bold">#自律型ソリューション</span>
           </div>
-
-          <div class="bg-white/95 p-3 rounded-xl border border-indigo-100 shadow-2xs space-y-1">
-            <div class="flex items-center space-x-1 text-sky-700 font-bold text-[11px]">
-              <span>🔄</span>
-              <span>3. 検索軸の更新</span>
-            </div>
-            <div class="pl-1 pt-0.5 flex flex-wrap gap-1.5 text-[10px]">
-              <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">#プロセス評価重視</span>
-              <span class="bg-sky-100 text-sky-800 px-2 py-0.5 rounded font-bold">#チーム協創型企業</span>
-            </div>
-          </div>
-        `;
-      }
+        </div>
+      `;
 
       chatArea.appendChild(card);
-      chatArea.scrollTop = chatArea.scrollHeight;
+      scrollChatToElement(card);
     }
 
-    /* ───────────────────────────────────────────────────────────────────────
-     * POINT 4: MODULE 3 (RE-ACTION & INDIVIDUAL ESCORT MENU) GOAL CARD
-     * ─────────────────────────────────────────────────────────────────────── */
-    function renderModule3ActionCard() {
+    // パターンA：モジュール3（明後日B社面接対策 ＆ 個別推薦求人）
+    function renderModule3ActionCardPatternA() {
       const chatArea = document.getElementById('chatScrollArea');
       const card = document.createElement('div');
       card.className = 'w-full my-3 p-4 bg-gradient-to-br from-emerald-600 via-teal-700 to-slate-900 text-white rounded-2xl shadow-xl animate-pop-card space-y-3';
       
-      if (STATE.scenario === 'A') {
-        card.innerHTML = `
-          <div class="flex items-center justify-between border-b border-emerald-400/40 pb-2">
-            <div class="flex items-center space-x-1.5 font-extrabold text-xs text-yellow-300">
-              <span class="text-sm">🏁</span>
-              <span>モジュール3：再行動・個別伴走メニュー（ゴール）</span>
-            </div>
-            <span class="text-[9px] font-bold bg-yellow-400 text-slate-900 px-2 py-0.5 rounded-full shadow-xs">リスタート準備完了</span>
+      card.innerHTML = `
+        <div class="flex items-center justify-between border-b border-emerald-400/40 pb-2">
+          <div class="flex items-center space-x-1.5 font-extrabold text-xs text-yellow-300">
+            <span class="text-sm">🏁</span>
+            <span>モジュール3：直近対策 ＆ 個別伴走メニュー（根拠連動）</span>
           </div>
+          <span class="text-[9px] font-bold bg-yellow-400 text-slate-900 px-2 py-0.5 rounded-full shadow-xs">直近B社連動</span>
+        </div>
 
-          <!-- 次の面接に向けた準備 -->
-          <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="font-bold text-xs text-emerald-200 flex items-center space-x-1">
-                <span>🎯</span>
-                <span>リスタート面接対策：推薦企業の想定質問</span>
-              </span>
-              <span class="text-[9px] bg-amber-500 text-slate-900 font-bold px-1.5 py-0.5 rounded">ゼロからの再起</span>
-            </div>
-            <div class="space-y-1 text-[11px] text-emerald-50">
-              <div class="font-semibold text-yellow-200">【深掘り想定質問 ＆ 逆質問リスト（3選）】：</div>
-              <ul class="list-disc pl-4 space-y-0.5 text-[10.5px] leading-relaxed">
-                <li><strong>想定問答1</strong>：「現場で泥臭く課題解決した経験は？」➔ カフェの教育マニュアル作成時の葛藤と新人への寄り添いを回答</li>
-                <li><strong>想定問答2</strong>：「トップダウンと現場裁量、どちらが力を発揮できる？」➔ 「現場の生の声に寄り添う環境でこそ自走できます」と回答</li>
-                <li><strong>必勝逆質問</strong>：「御社で最も活躍されている若手社員に共通する、現場での行動特性は何ですか？」</li>
-              </ul>
-            </div>
-          </div>
-
-          <!-- 個別推薦求人 -->
-          <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20 space-y-1.5">
-            <div class="flex items-center justify-between">
-              <span class="font-bold text-xs text-emerald-200 flex items-center space-x-1">
-                <span>🏢</span>
-                <span>アップデート軸に基づく個別推薦求人</span>
-              </span>
-              <span class="text-[9px] bg-emerald-400 text-slate-900 font-extrabold px-1.5 py-0.5 rounded">マッチ度 92%</span>
-            </div>
-            <div class="text-[11px] text-white">
-              <strong>C社（ITソリューション・自律分散型組織）</strong><br/>
-              <span class="text-[10px] text-emerald-100">形式的な理念共感よりも「現場での課題解決・伴走力」を最重要視するカルチャー。前回の反省がそのまま最大の強みになります。</span>
-            </div>
-          </div>
-
-          <!-- 次のアクションボタン -->
-          <div class="pt-1 flex gap-2">
-            <button id="btnStartMockInterview" onclick="startMockInterview()" class="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-900 font-extrabold text-xs shadow-md transition active:scale-95 text-center flex items-center justify-center space-x-1">
+        <!-- 明後日のB社面接に向けた直近対策（発言根拠連動） -->
+        <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-xs text-emerald-200 flex items-center space-x-1">
               <span>🎯</span>
-              <span>面接シミュレーション開始 ➔</span>
-            </button>
-            <button onclick="showJobDetailModal()" class="py-2 px-3 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold text-xs border border-white/30 transition active:scale-95 text-center">
-              求人詳細
-            </button>
+              <span>明後日（B社面接）の想定問答 ＆ 逆質問リスト</span>
+            </span>
+            <span class="text-[9px] bg-amber-400 text-slate-900 font-bold px-1.5 py-0.5 rounded">明後日本番</span>
           </div>
-        `;
-      } else {
-        card.innerHTML = `
-          <div class="flex items-center justify-between border-b border-emerald-400/40 pb-2">
-            <div class="flex items-center space-x-1.5 font-extrabold text-xs text-yellow-300">
-              <span class="text-sm">🏁</span>
-              <span>モジュール3：ESリベンジ伴走メニュー</span>
-            </div>
-            <span class="text-[9px] font-bold bg-yellow-400 text-slate-900 px-2 py-0.5 rounded-full">準備完了</span>
-          </div>
-
-          <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20 space-y-2 text-[11px]">
-            <div class="font-bold text-xs text-emerald-200">【来週に向けたESブラッシュアップ3大チェック】：</div>
-            <ul class="list-disc pl-4 space-y-0.5 text-[10.5px] text-emerald-50">
-              <li>抽象的な「協調性」を「具体的なファシリテーション」へ書き換える</li>
-              <li>困難を乗り越えた「泥臭い思考プロセス」を1行追加する</li>
-              <li>「数値成果＋周囲の感情変化」の定性定量ダブルフックを入れる</li>
+          <div class="space-y-1.5 text-[11px] text-emerald-50">
+            <p class="text-[10px] text-yellow-200 leading-tight">
+              ※前回の「理念深掘りで詰まった反省」を活かし、形式的な暗唱を排除した想定問答：
+            </p>
+            <ul class="list-disc pl-4 space-y-1 text-[10.5px] leading-relaxed">
+              <li>
+                <strong>想定質問1</strong>：「なぜ御社の理念に共感したか？」<br/>
+                ➔ <em>「カフェで離職率を下げる際に実感した『現場ファーストで人に寄り添う大切さ』が、御社の〇〇理念と完全に一致しているからです」</em>と回答。
+              </li>
+              <li>
+                <strong>想定質問2</strong>：「指示待ちではなく自走できるか？」<br/>
+                ➔ <em>マニュアル作成の泥臭い試行錯誤プロセスを実績として回答</em>。
+              </li>
+              <li>
+                <strong>必勝逆質問</strong>：「御社で最も自律的に成果を出している現場社員の方は、理念をどのように日々の業務に落とし込んでいますか？」
+              </li>
             </ul>
           </div>
-        `;
-      }
+        </div>
+
+        <!-- アップデート軸に基づく個別推薦求人（発言根拠連動） -->
+        <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-xs text-emerald-200 flex items-center space-x-1">
+              <span>🏢</span>
+              <span>個別推薦求人：C社（ITソリューション）</span>
+            </span>
+            <span class="text-[9px] bg-emerald-400 text-slate-900 font-extrabold px-1.5 py-0.5 rounded">マッチ度 92%</span>
+          </div>
+          <div class="text-[11px] text-white space-y-1">
+            <p class="text-[10.5px] text-emerald-100 leading-relaxed">
+              <strong>【推薦の根拠】</strong>：形式的な理念共感よりも「現場での課題解決・伴走力」を最重要視する自律分散型組織。あなたの「カフェでの新人教育・マニュアル改善の泥臭さ」がそのまま最大の選考武器になります。
+            </p>
+          </div>
+        </div>
+
+        <!-- 次のアクションボタン -->
+        <div class="pt-1 flex gap-2">
+          <button id="btnStartMockInterview" onclick="startMockInterview()" class="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-900 font-extrabold text-xs shadow-md transition active:scale-95 text-center flex items-center justify-center space-x-1">
+            <span>🎯</span>
+            <span>面接シミュレーション開始 ➔</span>
+          </button>
+          <button onclick="showJobDetailModal()" class="py-2 px-3 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold text-xs border border-white/30 transition active:scale-95 text-center">
+            求人詳細
+          </button>
+        </div>
+      `;
 
       chatArea.appendChild(card);
-      chatArea.scrollTop = chatArea.scrollHeight;
+      scrollChatToElement(card);
+    }
+
+    // パターンBカード
+    function renderRealtimeStructureCardPatternB() {
+      const chatArea = document.getElementById('chatScrollArea');
+      const card = document.createElement('div');
+      card.className = 'w-full my-3 p-4 bg-gradient-to-br from-indigo-50 via-sky-50 to-emerald-50 rounded-2xl border-2 border-indigo-200 shadow-md animate-pop-card space-y-3';
+      card.innerHTML = `
+        <div class="flex items-center justify-between border-b border-indigo-200/80 pb-2">
+          <div class="flex items-center space-x-1.5 text-indigo-900 font-bold text-xs">
+            <span class="text-sm">⚡</span>
+            <span>ES敗因構造化メモ ＆ 自己分析アップデート</span>
+          </div>
+          <span class="text-[9px] font-extrabold bg-blue-600 text-white px-2 py-0.5 rounded-full animate-pulse-subtle">リアルタイム自動生成</span>
+        </div>
+
+        <div class="bg-white/95 p-3 rounded-xl border border-indigo-100 shadow-2xs space-y-1">
+          <div class="flex items-center space-x-1 text-rose-700 font-bold text-[11px]">
+            <span>🎯</span>
+            <span>1. 今回の敗因構造化</span>
+          </div>
+          <p class="text-[11px] text-slate-700 leading-relaxed pl-1">
+            一般的な優等生的表現に終始し、独自の泥臭い「課題解決プロセス」が伝わっていなかったこと。
+          </p>
+        </div>
+
+        <div class="bg-white/95 p-3 rounded-xl border border-indigo-100 shadow-2xs space-y-1">
+          <div class="flex items-center space-x-1 text-emerald-700 font-bold text-[11px]">
+            <span>💎</span>
+            <span>2. アップデートされた強み</span>
+          </div>
+          <p class="text-[11px] text-slate-700 leading-relaxed pl-1">
+            抽象的な「協調性」を排し、<strong>「チームの摩擦を解消するファシリテーション力」</strong>として言語化。
+          </p>
+        </div>
+      `;
+      chatArea.appendChild(card);
+      scrollChatToElement(card);
     }
 
     /* ───────────────────────────────────────────────────────────────────────
-     * DEMO PLAYBACK CONTROLLER (PLAY / PAUSE / RESUME)
+     * 3. 宣言的ステップに基づくデモ自動再生エンジン
      * ─────────────────────────────────────────────────────────────────────── */
     function toggleAutoDemo() {
       if (STATE.isDemoPlaying) {
@@ -978,6 +1224,8 @@
 
     async function startAutoDemo() {
       STATE.isDemoPlaying = true;
+      exitRestMode();
+
       const btn = document.getElementById('btnAutoDemo');
       const text = document.getElementById('demoBtnText');
       const icon = document.getElementById('demoIcon');
@@ -989,52 +1237,52 @@
 
       resetAll(false);
 
-      if (STATE.scenario === 'A') {
-        // Pattern A: Severe Shock + No Upcoming Interviews (持ち駒ゼロ)
-        await waitDemo(500);
-        await sendUserMessage('もう就活やめたい…第一志望だったのに最終面接で落ちて、自分の全人格も、大学4年間頑張ってきたすべてを否定されたみたいで涙が止まらない…もうどうでもいい、何もやりたくない');
+      const steps = STATE.scenario === 'A' ? patternASteps : patternBSteps;
+      
+      for (let i = 0; i < steps.length; i++) {
+        if (!STATE.isDemoPlaying) break;
+        const step = steps[i];
 
-        await waitDemo(2400);
-        await sendUserMessage('親や周りの友達にもずっと受かる風に言ってたから、落ちたなんて恥ずかしくて誰にも言えない…あんなに準備した自分が情けなくて、ただ部屋で毛布かぶって震えてる');
+        // 休養ステップは通常のフルデモ再生ではスキップ（整理して再行動するフローを実演）
+        if (step.isRestLanding) continue;
 
-        await waitDemo(2400);
-        // Wait for Trigger Button to appear and simulate click
-        const optBtn = document.getElementById('p1_trigger_A_opt_0');
-        if (optBtn) {
-          optBtn.click();
-        } else {
-          sendUserMessage('少し落ち着いたかも。他に持ち駒もないし、何がダメだったのか冷静に振り返って、次どうすればいいか整理したい');
-          setPhase(2);
+        // フェーズ変更がある場合
+        if (step.phase !== STATE.phase) {
+          setPhase(step.phase, false);
         }
 
-        await waitDemo(2400);
-        await sendUserMessage('最終面接まで通過していたES（ガクチカ）を見てもらいたい。カフェでの新人離職率を下げるためにマニュアルを作って教育したエピソードなんだけど…');
+        // 表示ウェイト
+        await waitDemo(step.delay || 1500);
+        if (!STATE.isDemoPlaying) break;
 
-        await waitDemo(2400);
-        await sendUserMessage('役員面接で「うちの企業理念の何に共感し、泥臭く体現できるか？」と深掘りされたとき、形式的なことしか言えず詰まってしまった…現場の課題解決プロセスを語るべきだったのかな');
-
-      } else {
-        // Pattern B: Mild Shock + ES Drop + 1 Week Margin
-        await waitDemo(500);
-        await sendUserMessage('滑り止めの企業だったのに書類で落ちて、自分はどこにも受からないんじゃないかってショックを受けてる…');
-
-        await waitDemo(2400);
-        const optBtn = document.getElementById('p1_trigger_B_opt_0');
-        if (optBtn) {
-          optBtn.click();
+        if (step.sender === 'user') {
+          appendMessage('user', step.text);
         } else {
-          sendUserMessage('今回のESのどこがダメだったか客観的に見直してみたい');
-          setPhase(2);
+          appendMessage('ai', step.text, false, step.badge);
         }
 
-        await waitDemo(2400);
-        await sendUserMessage('落ちてしまったESの自己PRを見てもらいたい。具体性や再現性が足りなかったのかな？');
+        // 選択肢がある場合
+        if (step.choices && step.choices.length > 0) {
+          renderInlineChoices(step.choices);
+          await waitDemo(1800);
+          if (!STATE.isDemoPlaying) break;
 
-        await waitDemo(2400);
-        await sendUserMessage('型通りの優等生的な表現になっていた気がする。自分の独自の強みをもっと際立たせたい');
+          // 自動デモでは「前を向いて整理する」側の選択肢をクリックシミュレート
+          const choiceBtn = document.getElementById('choice_btn_0');
+          if (choiceBtn) {
+            choiceBtn.click();
+            await waitDemo(800);
+          }
+        }
+
+        // カード描画がある場合
+        if (step.card) {
+          renderCardByStep(step.card);
+          await waitDemo(1200);
+        }
       }
 
-      await waitDemo(1000);
+      await waitDemo(800);
       stopAutoDemo();
     }
 
@@ -1046,23 +1294,29 @@
 
     /* ─── RESET ALL ─── */
     function resetAll(showFirstAi = true) {
+      exitRestMode();
       STATE.phase = 1;
       STATE.history = [];
-      STATE.turnCountInPhase = 0;
       document.getElementById('chatScrollArea').innerHTML = '';
       setPhase(1, false);
+
       if (showFirstAi) {
-        appendMessage(INITIAL_MESSAGES[STATE.scenario].role, INITIAL_MESSAGES[STATE.scenario].text);
+        const steps = STATE.scenario === 'A' ? patternASteps : patternBSteps;
+        const firstStep = steps[0];
+        if (firstStep) {
+          appendMessage(firstStep.sender, firstStep.text, false, firstStep.badge);
+        }
       }
       updateQuickChips();
     }
 
     /* ─── SPEECH SIMULATION ─── */
     function simulateVoiceInput() {
+      if (STATE.isRestMode) return;
       const demoVoiceTexts = [
         '第一志望の最終面接で落ちて、大学4年間すべてを否定された気分でもう何もしたくない',
-        '他に持ち駒もないし何がダメだったのか冷静に振り返って次どうすればいいか整理したい',
-        '逆質問で企業理念への深掘りを聞かれたとき、形式的なことしか言えず詰まってしまった',
+        '明後日にB社面接もあるから、何がダメだったのか無理のない範囲で整理したい',
+        '役員面接で企業理念への深掘りを聞かれたとき、形式的なことしか言えず詰まってしまった',
       ];
       const randomText = demoVoiceTexts[Math.floor(Math.random() * demoVoiceTexts.length)];
       
@@ -1090,6 +1344,7 @@
         }[tag] || tag)
       );
     }
+
     /* ───────────────────────────────────────────────────────────────────────
      * MOCK INTERVIEW SIMULATION (inline chat)
      * ─────────────────────────────────────────────────────────────────────── */
@@ -1097,22 +1352,21 @@
       const btn = document.getElementById('btnStartMockInterview');
       if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = '⏳ シミュレーション中…'; }
 
-      appendMessage('ai', '【🎯 面接シミュレーション開始】\n推薦企業C社（ITソリューション・自律分散型組織）の一次面接を想定した模擬面接を始めるよ！\n\nリラックスして、本番のつもりで答えてみてね。');
+      appendMessage('ai', '【🎯 面接シミュレーション開始】\n推薦企業C社（自律分散型組織）の面接を想定した模擬問答を始めるよ！\n前回の「理念深掘りで詰まった反省」を活かして答えてみてね。');
 
-      await new Promise(r => setTimeout(r, 1800));
+      await new Promise(r => setTimeout(r, 1600));
 
-      appendMessage('ai', '【👔 C社 採用担当（面接官）】\n「本日はお越しいただきありがとうございます。\n\nさっそくですが、あなたがカフェのアルバイトで新人教育マニュアルを作成した経験について伺いました。\n\n弊社は現場裁量を重視する文化ですが、あなたのその経験を、弊社のような自律分散型の組織でどのように活かせると思いますか？」');
+      appendMessage('ai', '【👔 C社 採用担当（面接官）】\n「さっそくですが、カフェのアルバイトで新人離職率を下げるマニュアルを作成された経験について伺いました。\n\n弊社は現場裁量を重視する文化ですが、その経験を、弊社の環境でどのように活かせると思いますか？」');
 
-      await new Promise(r => setTimeout(r, 1200));
+      await new Promise(r => setTimeout(r, 1000));
 
-      // Render answer choices
       const chatArea = document.getElementById('chatScrollArea');
       const choiceWrapper = document.createElement('div');
       choiceWrapper.className = 'flex flex-col gap-2 my-3 animate-pop-card';
       choiceWrapper.id = 'mockInterviewChoices';
 
       const choices = [
-        { label: '💡 弱み反転回答（推奨）', text: '前職では「マニュアルを作って終わり」になりがちでしたが、むしろ大事なのはマニュアルを"起点"にして、現場の一人ひとりの声を聞きながら柔軟に改善し続けることだと学びました。御社のような現場裁量を重視する環境であれば、私の「現場に寄り添いながら仕組みを育てる力」をダイレクトに活かせると考えています。', isPrimary: true },
+        { label: '💡 弱み反転回答（推奨・発言根拠連動）', text: '前回の面接では形式的な理念共感にとどまってしまいましたが、カフェの現場で学んだのは「マニュアルを起点にして、一人ひとりの声を聞きながら柔軟に改善し続けること」の重要性でした。現場裁量を重視する御社であれば、この「現場に寄り添いながら仕組みを育てる力」をダイレクトに活かせると考えています。', isPrimary: true },
         { label: '📋 標準回答', text: 'カフェで新人教育マニュアルを作成し、離職率を下げた経験があります。この経験を御社でも活かし、チームの成長に貢献したいと考えています。', isPrimary: false }
       ];
 
@@ -1130,22 +1384,20 @@
       });
 
       chatArea.appendChild(choiceWrapper);
-      chatArea.scrollTop = chatArea.scrollHeight;
+      scrollChatToElement(choiceWrapper);
     }
 
     async function handleMockAnswer(choice, idx) {
       appendMessage('user', choice.text);
-      await new Promise(r => setTimeout(r, 1500));
+      await new Promise(r => setTimeout(r, 1400));
 
       if (idx === 0) {
-        // 弱み反転回答 → 高評価フィードバック
-        appendMessage('ai', '【👔 C社 採用担当（面接官）】\n「なるほど、"マニュアルを起点にして現場に寄り添い改善し続ける"という視点、非常に共感できます。\n\n弊社のカルチャーにまさにフィットする考え方ですね。ぜひ次のステップでもお話を聞かせてください。」');
+        appendMessage('ai', '【👔 C社 採用担当（面接官）】\n「なるほど、"マニュアルを起点にして現場に寄り添い改善し続ける"という視点、非常に素晴らしいですね。\n\n形式的な理念の暗唱ではなく、実際の現場行動と結びついていて説得力があります。ぜひ次の選考でも詳しくお話を聞かせてください。」');
       } else {
-        // 標準回答 → 改善フィードバック
-        appendMessage('ai', '【👔 C社 採用担当（面接官）】\n「ありがとうございます。マニュアル作成の経験は素晴らしいですね。\n\nもう少し具体的に、現場でどんな壁にぶつかり、それをどう乗り越えたか聞かせていただけますか？」');
+        appendMessage('ai', '【👔 C社 採用担当（面接官）】\n「ありがとうございます。マニュアル作成の経験は素晴らしいですね。\n\nもう少し具体的に、現場でどんな壁にぶつかり、どう寄り添って乗り越えたのか聞かせていただけますか？」');
       }
 
-      await new Promise(r => setTimeout(r, 1200));
+      await new Promise(r => setTimeout(r, 1000));
       renderInterviewFeedbackCard(idx);
     }
 
@@ -1157,18 +1409,18 @@
       const score = answerIdx === 0 ? 98 : 72;
       const scoreColor = answerIdx === 0 ? 'text-yellow-300' : 'text-orange-300';
       const evaluation = answerIdx === 0
-        ? `<li><strong>前回の弱点「形式的な理念回答」</strong>を見事に<span class="text-yellow-300">「現場寄り添い型の具体回答」</span>へ反転できています！</li>
-           <li>「マニュアルを"起点"にする」という<strong>独自のフレーミング</strong>が企業カルチャーとの高い親和性を示しています。</li>
-           <li>自律分散型組織での<strong>自走力</strong>を具体的にアピールできている、非常に説得力のある回答です。</li>`
-        : `<li>エピソードの提示はできていますが、<strong>「具体的な困難と乗り越え方」</strong>が不足しています。</li>
-           <li>前回の反省点である<strong>「形式的な回答」</strong>からの脱却がまだ十分ではありません。</li>
-           <li>次回は「現場の生の声に寄り添った改善プロセス」を具体的に語ると説得力が増します。</li>`;
+        ? `<li><strong>前回の敗因「形式的な理念回答」</strong>を見事に<span class="text-yellow-300">「現場寄り添い型の泥臭い具体回答」</span>へ反転できています！</li>
+           <li>カフェでのマニュアル改善経験を、C社の「現場裁量カルチャー」と自然に紐づけています。</li>
+           <li>明後日のB社面接でもこの構成を使えば、理念質問で詰まる心配はありません！</li>`
+        : `<li>エピソードの提示はできていますが、<strong>「具体的な困難と泥臭い乗り越え方」</strong>が不足しています。</li>
+           <li>前回の反省点である「形式的な回答」からの脱却がまだ十分ではありません。</li>
+           <li>次回はカフェでの新人教育の生々しい葛藤を1行入れると格段に良くなります。</li>`;
 
       card.innerHTML = `
         <div class="flex items-center justify-between border-b border-purple-400/40 pb-2">
           <div class="flex items-center space-x-1.5 font-extrabold text-xs text-yellow-200">
             <span class="text-sm">📊</span>
-            <span>面接シミュレーション 重点フィードバック</span>
+            <span>面接シミュレーション 重点フィードバック（根拠紐づけ）</span>
           </div>
           <span class="text-[9px] font-bold bg-yellow-400 text-slate-900 px-2 py-0.5 rounded-full">講評カード</span>
         </div>
@@ -1179,26 +1431,25 @@
         </div>
 
         <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20 space-y-1.5">
-          <div class="font-bold text-xs text-purple-200">【詳細評価】：</div>
+          <div class="font-bold text-xs text-purple-200">【詳細評価と根拠】：</div>
           <ul class="list-disc pl-4 space-y-1 text-[10.5px] text-purple-50 leading-relaxed">
             ${evaluation}
           </ul>
         </div>
 
         <div class="text-center text-[10px] text-purple-200 pt-1">
-          ${answerIdx === 0 ? '🎉 前回の失敗を見事にリカバリー！この調子で本番に臨もう！' : '💪 もう一度弱み反転回答にチャレンジしてみよう！'}
+          ${answerIdx === 0 ? '🎉 前回の失敗を完全克服！明後日のB社面接にも自信を持って臨もう！' : '💪 もう一度弱み反転回答にチャレンジしてみよう！'}
         </div>
       `;
 
       chatArea.appendChild(card);
-      chatArea.scrollTop = chatArea.scrollHeight;
+      scrollChatToElement(card);
     }
 
     /* ───────────────────────────────────────────────────────────────────────
      * JOB DETAIL MODAL
      * ─────────────────────────────────────────────────────────────────────── */
     function showJobDetailModal() {
-      // Remove existing modal if any
       const existing = document.getElementById('jobDetailModal');
       if (existing) existing.remove();
 
@@ -1212,7 +1463,7 @@
           <div class="flex items-center justify-between">
             <h3 class="font-extrabold text-base text-slate-800 flex items-center space-x-2">
               <span>🏢</span>
-              <span>C社 求人詳細</span>
+              <span>C社 求人詳細（個別推薦）</span>
             </h3>
             <button onclick="document.getElementById('jobDetailModal').remove()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 text-sm font-bold transition">✕</button>
           </div>
@@ -1227,25 +1478,25 @@
               <div class="font-bold text-blue-800 text-xs mb-1">マッチ度</div>
               <div class="flex items-center space-x-2">
                 <div class="text-2xl font-black text-blue-600">92%</div>
-                <div class="text-xs text-blue-600">あなたの強みと高い親和性</div>
+                <div class="text-xs text-blue-600">あなたの「現場伴走力」と極めて高い親和性</div>
               </div>
             </div>
 
             <div class="p-3 bg-amber-50 rounded-xl border border-amber-200">
-              <div class="font-bold text-amber-800 text-xs mb-1">カルチャー</div>
+              <div class="font-bold text-amber-800 text-xs mb-1">カルチャー・求める人物像</div>
               <div class="text-xs leading-relaxed">形式的な理念共感よりも「現場での課題解決・伴走力」を最重要視。トップダウンではなく、現場裁量で自律的に動ける人材を歓迎。</div>
             </div>
 
             <div class="p-3 bg-purple-50 rounded-xl border border-purple-200">
-              <div class="font-bold text-purple-800 text-xs mb-1">なぜあなたに合うか</div>
-              <div class="text-xs leading-relaxed">前回の第一志望で「形式的な理念回答」が敗因でしたが、C社は理念の暗唱より<strong>現場での実践力</strong>を見る企業です。あなたのカフェでの教育改善経験がそのまま最大の武器になります。</div>
+              <div class="font-bold text-purple-800 text-xs mb-1">あなたの発言とのつながり（根拠）</div>
+              <div class="text-xs leading-relaxed">前回の第一志望では「形式的な理念回答」がネックとなりましたが、C社は理念の暗唱より<strong>現場での実践力</strong>を見る企業です。あなたのカフェでのマニュアル改善経験がそのまま最大の武器になります。</div>
             </div>
 
             <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
               <div class="font-bold text-slate-700 text-xs mb-1">選考スケジュール</div>
               <div class="text-xs leading-relaxed">
-                <div>📄 ES締切：来週金曜日</div>
-                <div>🎤 一次面接：ES通過後1週間以内</div>
+                <div>📄 特別選考パス：書類選考免除</div>
+                <div>🎤 一次面接：明後日のB社終了後、来週中に調整可能</div>
               </div>
             </div>
           </div>
